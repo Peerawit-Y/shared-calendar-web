@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ปฏิทินส่งงาน & สอบส่วนกลาง</title>
+  
+  <!-- Google Fonts: Prompt & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FullCalendar CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+  
+  <!-- SweetAlert2 for clean alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* FullCalendar customizations */
+    .fc {
+      font-family: 'Prompt', sans-serif;
+    }
+    .fc .fc-toolbar-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .fc .fc-button-primary {
+      background-color: #4f46e5;
+      border-color: #4f46e5;
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      font-weight: 500;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    .fc .fc-button-primary:hover {
+      background-color: #4338ca;
+      border-color: #4338ca;
+    }
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled):active {
+      background-color: #3730a3;
+      border-color: #3730a3;
+    }
+    .fc-event {
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 3px 6px;
+      font-size: 0.8rem;
+      border: none !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      font-weight: 500;
+    }
+    .fc-event-main, .fc-event-time, .fc-event-title {
+      color: #ffffff !important;
+    }
+    .fc-daygrid-event-dot {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+  <!-- Navbar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
+          <i data-lucide="calendar" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">ปฏิทินงาน & สอบส่วนกลาง</h1>
+          <p class="text-xs text-slate-500">ซิงค์อัตโนมัติกับ Google Sheets (SheetDB)</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Refresh button -->
+        <button id="btnRefresh" title="รีเฟรชข้อมูล" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200">
+          <i data-lucide="refresh-cw" class="w-5 h-5" id="refreshIcon"></i>
+        </button>
+
+        <!-- Add Task button -->
+        <button id="btnOpenAddModal" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow transition-all space-x-1.5">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>เพิ่มงานใหม่</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Filter & Stats Bar -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full flex flex-col gap-6">
+
+    <!-- Filters Header -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Term Filter -->
+        <div class="flex items-center space-x-2">
+          <label for="filterTerm" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">เทอม:</label>
+          <select id="filterTerm" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+            <option value="ALL">ทุกเทอม (All)</option>
+          </select>
+        </div>
+
+        <!-- Subject Filter -->
+        <div class="flex items-center space-x-2">
+          <label for="filterSubject" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">วิชา:</label>
+          <select id="filterSubject" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+            <option value="ALL">ทุกวิชา (All)</option>
+          </select>
+        </div>
+
+        <!-- Type Filter -->
+        <div class="flex items-center space-x-2">
+          <label for="filterType" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">ประเภท:</label>
+          <select id="filterType" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+            <option value="ALL">ทั้งหมด</option>
+            <option value="สอบ">สอบ (Midterm/Final)</option>
+            <option value="การบ้าน">การบ้าน</option>
+            <option value="โปรเจกต์">รายงาน / โปรเจกต์</option>
+            <option value="นัดหมาย">นัดหมาย / อื่นๆ</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Color Legend -->
+      <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+          <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> สอบ
+        </span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+          <span class="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span> การบ้าน
+        </span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+          <span class="w-2 h-2 rounded-full bg-purple-500 mr-1.5"></span> โปรเจกต์
+        </span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+          <span class="w-2 h-2 rounded-full bg-sky-500 mr-1.5"></span> นัดหมาย
+        </span>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> เสร็จแล้ว
+        </span>
+      </div>
+    </div>
+
+    <!-- Calendar View Container -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
+      <div id="calendar"></div>
+    </div>
+
+    <!-- List View / Upcoming Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <i data-lucide="list-todo" class="w-5 h-5 text-indigo-600"></i>
+          รายการทั้งหมดตามลำดับกำหนดส่ง (Timeline)
+        </h2>
+        <span id="taskCount" class="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-medium">0 รายการ</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-slate-500 font-semibold text-xs uppercase border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3">เทอม</th>
+              <th class="px-4 py-3">วิชา</th>
+              <th class="px-4 py-3">งาน / กิจกรรม</th>
+              <th class="px-4 py-3">ประเภท</th>
+              <th class="px-4 py-3">กำหนดส่ง / วันสอบ</th>
+              <th class="px-4 py-3">นับถอยหลัง</th>
+              <th class="px-4 py-3">สถานะ</th>
+              <th class="px-4 py-3 text-right">การกระทำ</th>
+            </tr>
+          </thead>
+          <tbody id="taskTableBody" class="divide-y divide-slate-100 text-slate-700">
+            <!-- Dynamic rows will render here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal: เพิ่มงานใหม่ -->
+  <div id="addModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <i data-lucide="calendar-plus" class="w-5 h-5 text-indigo-600"></i>
+          เพิ่มงาน / กำหนดสอบใหม่
+        </h3>
+        <button id="btnCloseAddModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="addTaskForm" class="mt-4 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <!-- เทอม -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">เทอม / ปีการศึกษา *</label>
+            <input type="text" id="inputTerm" required placeholder="เช่น 1/2569" value="1/2569" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          </div>
+          <!-- วิชา -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อวิชา / รหัสวิชา</label>
+            <input type="text" id="inputSubject" placeholder="เช่น อังกฤษ, CS101, ปัญญาประดิษฐ์" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          </div>
+        </div>
+
+        <!-- ชื่องาน -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่องาน / กิจกรรม *</label>
+          <input type="text" id="inputTitle" required placeholder="เช่น สอบกลางภาค, รายงานบทที่ 1" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- ประเภท -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">ประเภท *</label>
+            <select id="inputType" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <option value="การบ้าน">การบ้าน</option>
+              <option value="สอบ">สอบ (Midterm/Final)</option>
+              <option value="โปรเจกต์">รายงาน / โปรเจกต์</option>
+              <option value="นัดหมาย">นัดหมาย / อื่นๆ</option>
+            </select>
+          </div>
+          <!-- สถานะ -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">สถานะ *</label>
+            <select id="inputStatus" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <option value="รอดำเนินการ">รอดำเนินการ</option>
+              <option value="กำลังทำ">กำลังทำ</option>
+              <option value="ส่งแล้ว">ส่งแล้ว</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- วันที่และเวลา -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">วันและเวลาที่กำหนดส่ง / สอบ *</label>
+          <input type="datetime-local" id="inputDueDate" required class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <!-- ลิงก์ / รายละเอียด -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">ลิงก์แนบ / เอกสารส่งงาน (ถ้ามี)</label>
+          <input type="url" id="inputLink" placeholder="https://drive.google.com/..." class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div class="pt-4 flex justify-end gap-3 border-t border-slate-100">
+          <button type="button" id="btnCancelAdd" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition">ยกเลิก</button>
+          <button type="submit" id="btnSubmitAdd" class="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>บันทึกลง Google Sheet</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: ดูรายละเอียดงาน (Event Details) -->
+  <div id="detailModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <span id="detailBadge" class="px-2.5 py-1 text-xs rounded-full font-semibold">ประเภท</span>
+        <button id="btnCloseDetailModal" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-3">
+        <h3 id="detailTitle" class="text-xl font-bold text-slate-900">ชื่องาน</h3>
+        
+        <div class="bg-slate-50 p-3.5 rounded-xl space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-slate-500">วิชา:</span>
+            <span id="detailSubject" class="font-semibold text-slate-800">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">เทอม:</span>
+            <span id="detailTerm" class="font-semibold text-slate-800">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">กำหนดส่ง/สอบ:</span>
+            <span id="detailDate" class="font-semibold text-indigo-600">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">สถานะ:</span>
+            <span id="detailStatus" class="font-semibold text-slate-800">-</span>
+          </div>
+        </div>
+
+        <div id="detailLinkBox" class="pt-2">
+          <a id="detailLink" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center w-full px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium rounded-xl text-sm transition gap-2">
+            <i data-lucide="external-link" class="w-4 h-4"></i>
+            เปิดเอกสาร / ลิงก์ที่เกี่ยวข้อง
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Logic JavaScript (Vite Module) -->
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
