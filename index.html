@@ -586,65 +586,100 @@
     </div>
   </div>
 
-  <!-- Modal: หน้าต่างเต็มจอ Split View 25% / 75% (A4 Exam Notebook Workspace) -->
-  <div id="modalReadExamGuide" class="fixed inset-0 bg-slate-950 z-50 hidden flex flex-col w-screen h-screen overflow-hidden">
+  <!-- Modal: หน้าต่างเต็มจอ Split View 25% / 75% (Word Document & A4 Exam Notebook Workspace) -->
+  <div id="modalReadExamGuide" class="fixed inset-0 bg-slate-900 z-50 hidden flex flex-col w-screen h-screen overflow-hidden">
     
-    <!-- Top Fullscreen Navbar (No Print) -->
-    <header class="h-14 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between gap-3 text-white shrink-0 z-20 no-print">
+    <!-- Top Word Document Ribbon Toolbar (No Print) -->
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0 z-20 no-print shadow-xs">
       
-      <!-- Brand & Title -->
+      <!-- Left: App Branding & Status -->
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
-          <i data-lucide="book-marked" class="w-4 h-4"></i>
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
+          <i data-lucide="file-edit" class="w-4 h-4"></i>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-            <span>กระดานจดสรุป A4 & คลังแนวข้อสอบ</span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono border border-purple-500/30">A4 CHEAT SHEET</span>
+          <h2 class="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
+            <span>เอกสารแนวข้อสอบ A4 (โหมดพิมพ์แก้แบบ Word)</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 font-semibold border border-purple-200">LIVE WORD EDITOR</span>
           </h2>
         </div>
       </div>
 
-      <!-- Center: Mode Switcher -->
-      <div class="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
-        <button id="btnViewModeA4" class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs transition">
-          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-          <span>กระดานจดสรุป A4</span>
+      <!-- Center: Word Formatting Tools Ribbon -->
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <!-- Bold, Italic, Underline -->
+        <button type="button" id="btnWordBold" title="ตัวหนา (Ctrl+B)" class="p-1.5 hover:bg-white rounded-lg text-slate-800 font-bold text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs">B</button>
+        <button type="button" id="btnWordItalic" title="ตัวเอียง (Ctrl+I)" class="p-1.5 hover:bg-white rounded-lg text-slate-800 italic font-serif text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs">I</button>
+        <button type="button" id="btnWordUnderline" title="ขีดเส้นใต้ (Ctrl+U)" class="p-1.5 hover:bg-white rounded-lg text-slate-800 underline text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs">U</button>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+        
+        <!-- Highlighter Pen -->
+        <button type="button" id="btnWordHighlight" title="ปากกาไฮไลต์เน้นข้อความ" class="px-2 py-1 hover:bg-yellow-100 rounded-lg text-slate-800 text-xs font-semibold bg-yellow-200/90 flex items-center gap-1 transition">
+          <i data-lucide="highlighter" class="w-3.5 h-3.5 text-amber-700"></i>
+          <span class="hidden sm:inline">ไฮไลต์</span>
         </button>
-        <button id="btnViewModePdf" class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
-          <i data-lucide="file-check" class="w-3.5 h-3.5"></i>
-          <span>ชีท PDF ในเว็บ</span>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+
+        <!-- Lists -->
+        <button type="button" id="btnWordBullet" title="ใส่หัวข้อ (Bullets)" class="p-1.5 hover:bg-white rounded-lg text-slate-700 w-7 h-7 flex items-center justify-center transition shadow-2xs">
+          <i data-lucide="list" class="w-3.5 h-3.5"></i>
         </button>
+        <button type="button" id="btnWordNumbered" title="ใส่เลขข้อ (Numbered)" class="p-1.5 hover:bg-white rounded-lg text-slate-700 w-7 h-7 flex items-center justify-center transition shadow-2xs">
+          <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i>
+        </button>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+
+        <!-- Save Button & Status -->
+        <button type="button" id="btnSaveWordDoc" class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-xs transition">
+          <i data-lucide="save" class="w-3.5 h-3.5"></i>
+          <span id="saveWordDocText">บันทึก</span>
+        </button>
+        <span id="saveWordDocStatus" class="text-[11px] text-emerald-600 font-semibold px-1.5 hidden flex items-center gap-1">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i>
+          <span>บันทึกแล้ว</span>
+        </span>
       </div>
 
-      <!-- Right Action Buttons -->
-      <div class="flex items-center gap-2">
+      <!-- Right Action Tools -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Toggle Page Width (A4 vs Full Width) -->
+        <button type="button" id="btnTogglePageWidth" title="สลับความกว้าง: หน้ากระดาษ A4 ปกติ / ขยายเต็มความกว้าง" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
+          <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-slate-600" id="iconPageWidth"></i>
+          <span id="labelPageWidth" class="hidden md:inline">ขยายเต็มความกว้าง</span>
+        </button>
+
+        <!-- View Mode Switcher -->
+        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-medium">
+          <button id="btnViewModeA4" class="px-2.5 py-1 rounded-md font-semibold bg-white text-purple-700 shadow-2xs transition">📝 หน้า Word/A4</button>
+          <button id="btnViewModePdf" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">📄 ชีท PDF</button>
+        </div>
+
+        <!-- Edit Metadata Modal Button -->
+        <button id="btnEditCurrentGuide" title="แก้ไขข้อมูลวิชา/เทอม/ลิงก์" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
+          <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-600"></i>
+          <span class="hidden lg:inline">ตั้งค่าวรชา</span>
+        </button>
+
         <!-- Print Button -->
-        <button id="btnPrintA4Sheet" title="พิมพ์กระดาษ A4 หรือบันทึกเป็น PDF" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-medium rounded-lg border border-slate-700 transition">
-          <i data-lucide="printer" class="w-3.5 h-3.5 text-purple-400"></i>
-          <span class="hidden sm:inline">พิมพ์ A4 / PDF</span>
+        <button id="btnPrintA4Sheet" title="พิมพ์กระดาษ A4 หรือบันทึกเป็น PDF" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
+          <i data-lucide="printer" class="w-3.5 h-3.5 text-slate-600"></i>
+          <span class="hidden md:inline">พิมพ์ A4</span>
         </button>
 
         <!-- Copy to LINE button -->
-        <button id="btnCopyGuideToLine" title="คัดลอกสรุปไปลง LINE กลุ่ม" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white text-xs font-semibold rounded-lg border border-emerald-500/30 transition">
+        <button id="btnCopyGuideToLine" title="คัดลอกสรุปไปลง LINE กลุ่ม" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition">
           <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-          <span class="hidden sm:inline">คัดลอกลง LINE</span>
-        </button>
-
-        <!-- Edit button -->
-        <button id="btnEditCurrentGuide" title="แก้ไขแนวข้อสอบนี้" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-purple-600 text-slate-300 hover:text-white text-xs font-medium rounded-lg border border-slate-700 transition">
-          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-          <span class="hidden sm:inline">แก้ไข</span>
+          <span class="hidden md:inline">ลง LINE</span>
         </button>
 
         <!-- Close button -->
-        <button id="btnCloseReadGuide" title="ปิดโหมดเต็มจอ" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition">
+        <button id="btnCloseReadGuide" title="ปิดโหมดเต็มจอ" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
     </header>
 
-    <!-- Main Workspace (Horizontal Split: 25% Left Sidebar / 75% Right Canvas) -->
+    <!-- Main Workspace (Horizontal Split: 25% Left Sidebar / 75% Right Word Canvas) -->
     <div class="flex-1 flex overflow-hidden w-full relative">
       
       <!-- LEFT PANEL (25% Width - Selection Sidebar) -->
@@ -676,92 +711,91 @@
         </div>
       </aside>
 
-      <!-- RIGHT PANEL (75% Width - Desk Canvas & PDF Reader) -->
-      <main class="flex-1 bg-slate-950 overflow-y-auto p-4 sm:p-8 flex flex-col items-center justify-start relative">
+      <!-- RIGHT PANEL (75% Width - Microsoft Word Document Workspace Canvas) -->
+      <main class="flex-1 bg-slate-200/90 overflow-y-auto p-4 sm:p-8 flex flex-col items-center justify-start relative">
         
-        <!-- VIEW 1: THE A4 CHEAT SHEET & NOTEBOOK PAPER -->
-        <div id="viewA4SheetContainer" class="w-full flex justify-center pb-12">
-          <div id="printableA4Sheet" class="a4-paper-shadow notebook-ruled max-w-[820px] w-full rounded-2xl p-6 sm:p-10 border border-slate-200 text-slate-800 relative transition-all">
+        <!-- VIEW 1: MICROSOFT WORD LIVE EDITABLE A4 DOCUMENT -->
+        <div id="viewA4SheetContainer" class="w-full flex justify-center pb-16">
+          <div id="printableA4Sheet" class="bg-white shadow-2xl border border-slate-300 max-w-5xl w-full min-h-[1100px] p-8 sm:p-14 text-slate-900 rounded-xs relative transition-all">
             
-            <!-- Clipboard Clamp Graphic at Top (No Print) -->
-            <div class="no-print w-32 h-6 bg-slate-800 rounded-b-lg shadow-md mx-auto -mt-6 sm:-mt-10 mb-5 flex items-center justify-center text-slate-400 font-mono text-[9px] tracking-widest uppercase border-t border-slate-700">
-              EXAM CHEAT SHEET
-            </div>
-
-            <!-- A4 Header: University & Exam Details -->
-            <div class="border-b-2 border-slate-900 pb-4 mb-5">
-              <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-600 mb-2">
-                <div class="flex items-center gap-2">
-                  <span id="readA4SubjectBadge" class="px-2.5 py-0.5 rounded bg-slate-900 text-white font-bold uppercase tracking-wider text-xs">SOFTWARE</span>
-                  <span id="readA4Term" class="font-semibold text-slate-700">เทอม 2.1/9/2569</span>
+            <!-- Word Page Ruler / Header Meta Bar -->
+            <div class="border-b-2 border-slate-900 pb-4 mb-6">
+              <div class="flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-600 mb-2.5">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span id="readA4SubjectBadge" class="px-3 py-1 rounded bg-slate-900 text-white font-bold uppercase tracking-wider text-xs">SOFTWARE</span>
+                  <span id="readA4Term" class="font-semibold text-slate-800">เทอม 2.1/9/2569</span>
                   <span>•</span>
                   <span id="readA4ExamType" class="font-semibold text-purple-700">สอบปลายภาค (FINAL)</span>
                 </div>
-                <div class="flex items-center gap-1.5 text-slate-500 font-sans text-[11px]">
-                  <i data-lucide="user-check" class="w-3.5 h-3.5 text-slate-400"></i>
+                <div class="flex items-center gap-1.5 text-slate-500 font-sans text-xs">
+                  <i data-lucide="user-check" class="w-4 h-4 text-slate-400"></i>
                   <span id="readA4Contributor">บันทึกโดย: เพื่อน Sec 1</span>
                 </div>
               </div>
 
-              <h2 id="readA4Title" class="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
+              <!-- Editable Document Title -->
+              <div contenteditable="true" id="readWordTitle" class="outline-none focus:bg-purple-50/40 focus:ring-2 focus:ring-purple-300 rounded px-2 py-1 text-2xl sm:text-3xl font-black text-slate-900 leading-tight transition cursor-text" placeholder="พิมพ์ชื่อแนวข้อสอบ...">
                 แนวข้อสอบ Final Software + จุดเน้นข้อเขียน
-              </h2>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1 italic no-print">💡 สามารถคลิกพิมพ์แก้ไขข้อความในหน้านี้ได้โดยตรงเหมือน Microsoft Word</p>
             </div>
 
-            <!-- Exam Rules / Instructions Banner -->
-            <div id="readA4FormatBox" class="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-3 mb-6 shadow-xs">
-              <div class="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider mb-1">
+            <!-- Editable Exam Rules / Format Banner -->
+            <div id="readA4FormatBox" class="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-4 mb-6 shadow-xs">
+              <div class="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider mb-1.5">
                 <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i>
                 <span>กติกาห้องสอบ & รูปแบบข้อสอบ (Exam Rules)</span>
               </div>
-              <p id="readA4Format" class="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">-</p>
+              <div contenteditable="true" id="readWordFormat" class="outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white rounded p-1 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed transition cursor-text" placeholder="พิมพ์กติกาห้องสอบ...">
+                -
+              </div>
             </div>
 
-            <!-- 2-COLUMN A4 CHEAT SHEET BODY -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <!-- 2-COLUMN EDITABLE WORD DOCUMENT BODY -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
               
-              <!-- Column 1: ขอบเขตเนื้อหา & ทฤษฎีสำคัญ -->
-              <div class="space-y-4">
-                <div class="border-b border-rose-300 pb-1.5 flex items-center justify-between">
+              <!-- Column 1: ขอบเขตเนื้อหาที่ออกสอบ (Scope & Topics) -->
+              <div class="space-y-3">
+                <div class="border-b-2 border-purple-200 pb-1.5 flex items-center justify-between">
                   <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                     <i data-lucide="target" class="w-4 h-4 text-purple-600"></i>
-                    <span>1. ขอบเขตเนื้อหาที่ออกสอบ (Scope)</span>
+                    <span>1. ขอบเขตเนื้อหาที่ออกสอบ (Exam Scope)</span>
                   </h3>
                   <span class="text-[10px] text-slate-400 font-mono">PART A</span>
                 </div>
 
-                <div id="readA4ScopeContainer" class="text-xs sm:text-sm text-slate-800 leading-relaxed space-y-2 whitespace-pre-line pl-1 font-sans">
+                <!-- Editable Scope Box -->
+                <div contenteditable="true" id="readWordScope" class="min-h-[380px] p-3 rounded-xl border border-slate-200 hover:border-slate-300 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none text-xs sm:text-sm text-slate-800 leading-relaxed transition cursor-text bg-slate-50/40 hover:bg-white whitespace-pre-line" placeholder="คลิกเพื่อพิมพ์ขอบเขตเนื้อหาที่ออกสอบ...">
                   <!-- Rendered Scope items -->
                 </div>
               </div>
 
-              <!-- Column 2: จุดเน้นอาจารย์ & สูตร & Tips (Sticky Note Aesthetic) -->
-              <div class="space-y-5">
+              <!-- Column 2: จุดเน้นอาจารย์ & Tips (Sticky Note Aesthetic) -->
+              <div class="space-y-6">
                 
-                <!-- Sticky Note Callout for Tips -->
-                <div id="readA4TipsBox" class="bg-yellow-100/90 border border-yellow-300/80 rounded-xl p-4 shadow-sm relative rotate-[-0.5deg]">
-                  <!-- Tape Graphic -->
-                  <div class="w-16 h-4 sticky-tape rounded-xs mx-auto -mt-6 mb-2 border border-black/5 rotate-[1deg]"></div>
-                  
+                <!-- Editable Tips Note -->
+                <div id="readA4TipsBox" class="bg-yellow-100/90 border border-yellow-300 rounded-xl p-4 shadow-sm relative">
                   <div class="flex items-center gap-1.5 text-amber-900 font-black text-xs uppercase tracking-wider mb-2">
                     <i data-lucide="flame" class="w-4 h-4 text-rose-500 fill-rose-500"></i>
                     <span>จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ (Tips)</span>
                   </div>
-                  <p id="readA4Tips" class="text-xs sm:text-sm text-amber-950 font-medium leading-relaxed whitespace-pre-line">-</p>
+                  <div contenteditable="true" id="readWordTips" class="outline-none focus:ring-2 focus:ring-yellow-400 focus:bg-white rounded p-1 text-xs sm:text-sm text-amber-950 font-medium leading-relaxed transition cursor-text whitespace-pre-line" placeholder="พิมพ์จุดที่อาจารย์เน้นย้ำในคาบ...">
+                    -
+                  </div>
                 </div>
 
                 <!-- PDF Attachment Callout (if available) -->
-                <div id="readA4PdfCallout" class="hidden bg-purple-50/80 border border-purple-200 rounded-xl p-3.5 flex items-center justify-between gap-3 no-print">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
-                      <i data-lucide="file-text" class="w-4 h-4"></i>
+                <div id="readA4PdfCallout" class="hidden bg-purple-50/80 border border-purple-200 rounded-xl p-4 flex items-center justify-between gap-3 no-print">
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <i data-lucide="file-text" class="w-5 h-5"></i>
                     </div>
                     <div>
                       <h4 class="text-xs font-bold text-purple-950">มีไฟล์ชีทสรุป PDF แนบไว้</h4>
                       <p class="text-[11px] text-purple-700">กดเปิดอ่านฉบับเต็มในเว็บได้ทันที</p>
                     </div>
                   </div>
-                  <button id="btnSwitchToPdfFromA4" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition shrink-0">
+                  <button id="btnSwitchToPdfFromA4" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition shrink-0 shadow-xs">
                     เปิดอ่าน PDF
                   </button>
                 </div>
@@ -770,8 +804,8 @@
 
             </div>
 
-            <!-- A4 Paper Footer -->
-            <div class="border-t-2 border-slate-900 mt-8 pt-3 flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-mono">
+            <!-- Word Document Footer -->
+            <div class="border-t-2 border-slate-900 mt-12 pt-3 flex flex-wrap items-center justify-between text-xs text-slate-500 font-mono">
               <span>🎓 A4 EXAM CHEAT SHEET • SHARED ACADEMIC HUB</span>
               <span id="readA4Date">พิมพ์วันที่: 06/11/2569</span>
             </div>
@@ -780,8 +814,8 @@
         </div>
 
         <!-- VIEW 2: IN-APP PDF VIEWER -->
-        <div id="viewPdfContainer" class="hidden w-full max-w-4xl pb-12">
-          <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+        <div id="viewPdfContainer" class="hidden w-full max-w-5xl pb-12">
+          <div class="bg-white rounded-2xl border border-slate-300 shadow-xl overflow-hidden">
             <div class="px-5 py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs">
               <div class="flex items-center gap-2">
                 <i data-lucide="file-text" class="w-4 h-4 text-purple-600"></i>
@@ -794,7 +828,7 @@
                 </a>
               </div>
             </div>
-            <div class="w-full h-[calc(100vh-140px)] min-h-[550px] bg-slate-200 relative">
+            <div class="w-full h-[calc(100vh-140px)] min-h-[580px] bg-slate-200 relative">
               <iframe id="readGuidePdfIframe" src="" class="w-full h-full border-0" allow="autoplay"></iframe>
             </div>
           </div>

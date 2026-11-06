@@ -903,60 +903,50 @@ function renderSidebarGuideList() {
   });
 }
 
-// Open Read Guide Modal (Fullscreen Split View 25% / 75%)
+// Open Read Guide Modal (Fullscreen Split View 25% / 75% Word Document Workspace)
 function openReadGuideModal(guide) {
   if (!guide) return;
   currentReadingGuide = guide;
 
   // 1. Header Information
-  document.getElementById('readA4SubjectBadge').textContent = guide.subject || 'วิชา';
-  document.getElementById('readA4Term').textContent = `เทอม ${guide.term || '-'}`;
-  document.getElementById('readA4ExamType').textContent = (guide.exam_type || 'สอบ').toUpperCase();
-  document.getElementById('readA4Contributor').textContent = `บันทึกโดย: ${guide.contributor || 'เพื่อนร่วมชั้น'}`;
-  document.getElementById('readA4Title').textContent = guide.title;
-  document.getElementById('readA4Date').textContent = `พิมพ์วันที่: ${guide.created_at || new Date().toLocaleDateString('th-TH')}`;
+  const subjectBadge = document.getElementById('readA4SubjectBadge');
+  if (subjectBadge) subjectBadge.textContent = guide.subject || 'วิชา';
 
-  // 2. Exam Format / Rules
-  const formatBox = document.getElementById('readA4FormatBox');
-  if (guide.format && guide.format.trim() !== '') {
-    document.getElementById('readA4Format').textContent = guide.format;
-    formatBox.classList.remove('hidden');
-  } else {
-    formatBox.classList.add('hidden');
+  const termEl = document.getElementById('readA4Term');
+  if (termEl) termEl.textContent = `เทอม ${guide.term || '-'}`;
+
+  const examTypeEl = document.getElementById('readA4ExamType');
+  if (examTypeEl) examTypeEl.textContent = (guide.exam_type || 'สอบ').toUpperCase();
+
+  const contributorEl = document.getElementById('readA4Contributor');
+  if (contributorEl) contributorEl.textContent = `บันทึกโดย: ${guide.contributor || 'เพื่อนร่วมชั้น'}`;
+
+  const dateEl = document.getElementById('readA4Date');
+  if (dateEl) dateEl.textContent = `พิมพ์วันที่: ${guide.created_at || new Date().toLocaleDateString('th-TH')}`;
+
+  // 2. Editable Document Title (MS Word style)
+  const titleEl = document.getElementById('readWordTitle');
+  if (titleEl) titleEl.innerText = guide.title || '';
+
+  // 3. Editable Exam Format / Rules
+  const formatEl = document.getElementById('readWordFormat');
+  if (formatEl) {
+    formatEl.innerText = guide.format || '';
   }
 
-  // 3. Exam Scope (Formatted with clean notebook styling)
-  const scopeContainer = document.getElementById('readA4ScopeContainer');
-  scopeContainer.innerHTML = '';
-  if (guide.scope && guide.scope.trim() !== '') {
-    const lines = guide.scope.split('\n').filter(Boolean);
-    lines.forEach(line => {
-      const p = document.createElement('p');
-      p.className = "py-1 border-b border-slate-100 last:border-0";
-      
-      // If line contains colon or key
-      if (line.includes(':')) {
-        const parts = line.split(':');
-        p.innerHTML = `<span class="bg-yellow-200/80 px-1 py-0.5 rounded font-bold text-slate-900">${parts[0]}:</span> <span class="text-slate-700">${parts.slice(1).join(':')}</span>`;
-      } else {
-        p.textContent = line;
-      }
-      scopeContainer.appendChild(p);
-    });
-  } else {
-    scopeContainer.innerHTML = `<p class="text-slate-400 italic">ไม่มีข้อมูลขอบเขตเนื้อหา</p>`;
+  // 4. Editable Exam Scope (Body Content)
+  const scopeEl = document.getElementById('readWordScope');
+  if (scopeEl) {
+    scopeEl.innerText = guide.scope || '';
   }
 
-  // 4. Tips (Post-It Sticky Note)
-  const tipsBox = document.getElementById('readA4TipsBox');
-  if (guide.tips && guide.tips.trim() !== '') {
-    document.getElementById('readA4Tips').textContent = guide.tips;
-    tipsBox.classList.remove('hidden');
-  } else {
-    tipsBox.classList.add('hidden');
+  // 5. Editable Tips (Post-It Sticky Note)
+  const tipsEl = document.getElementById('readWordTips');
+  if (tipsEl) {
+    tipsEl.innerText = guide.tips || '';
   }
 
-  // 5. In-App Embedded PDF Viewer Setup
+  // 6. In-App Embedded PDF Viewer Setup
   const btnViewPdf = document.getElementById('btnViewModePdf');
   const pdfCallout = document.getElementById('readA4PdfCallout');
   const pdfIframe = document.getElementById('readGuidePdfIframe');
@@ -964,23 +954,119 @@ function openReadGuideModal(guide) {
 
   if (guide.pdf_link && guide.pdf_link.trim() !== '') {
     const embedUrl = convertToEmbedUrl(guide.pdf_link);
-    pdfIframe.src = embedUrl;
-    pdfExternalLink.href = guide.pdf_link.startsWith('http') ? guide.pdf_link : `https://${guide.pdf_link}`;
-    btnViewPdf.classList.remove('hidden');
-    pdfCallout.classList.remove('hidden');
+    if (pdfIframe) pdfIframe.src = embedUrl;
+    if (pdfExternalLink) pdfExternalLink.href = guide.pdf_link.startsWith('http') ? guide.pdf_link : `https://${guide.pdf_link}`;
+    if (btnViewPdf) btnViewPdf.classList.remove('hidden');
+    if (pdfCallout) pdfCallout.classList.remove('hidden');
   } else {
-    pdfIframe.src = '';
-    btnViewPdf.classList.add('hidden');
-    pdfCallout.classList.add('hidden');
+    if (pdfIframe) pdfIframe.src = '';
+    if (btnViewPdf) btnViewPdf.classList.add('hidden');
+    if (pdfCallout) pdfCallout.classList.add('hidden');
   }
 
-  // Reset to A4 Cheat Sheet Mode
+  // Reset to Word / A4 Document Mode
   setA4ViewMode('a4');
 
   // Render the left 25% sidebar so the active guide is highlighted
   renderSidebarGuideList();
 
   document.getElementById('modalReadExamGuide').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+// Save Word Document Changes (Direct In-Place Editing)
+async function saveWordDocument() {
+  if (!currentReadingGuide) return;
+
+  const btnSave = document.getElementById('btnSaveWordDoc');
+  const saveText = document.getElementById('saveWordDocText');
+  const saveStatus = document.getElementById('saveWordDocStatus');
+
+  const newTitle = document.getElementById('readWordTitle')?.innerText.trim() || currentReadingGuide.title;
+  const newFormat = document.getElementById('readWordFormat')?.innerText.trim() || '';
+  const newScope = document.getElementById('readWordScope')?.innerText.trim() || '';
+  const newTips = document.getElementById('readWordTips')?.innerText.trim() || '';
+
+  if (btnSave) btnSave.disabled = true;
+  if (saveText) saveText.textContent = 'กำลังบันทึก...';
+
+  // Update current in-memory object
+  currentReadingGuide.title = newTitle;
+  currentReadingGuide.format = newFormat;
+  currentReadingGuide.scope = newScope;
+  currentReadingGuide.tips = newTips;
+
+  const guidePayload = {
+    ...currentReadingGuide,
+    "Title": newTitle,
+    "Format": newFormat,
+    "Scope": newScope,
+    "Tips": newTips,
+    "title": newTitle,
+    "format": newFormat,
+    "scope": newScope,
+    "tips": newTips
+  };
+
+  const apiUrl = getApiUrl();
+  let savedToSheet = false;
+
+  if (apiUrl && currentReadingGuide.id) {
+    try {
+      const res = await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
+        method: 'PATCH',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ data: guidePayload })
+      });
+      savedToSheet = res.ok;
+    } catch (err) {
+      console.warn('Word document save to sheet failed, updated locally:', err);
+    }
+  }
+
+  // Update in global exam guides array
+  const idx = allExamGuides.findIndex(g => g.id === currentReadingGuide.id);
+  if (idx !== -1) {
+    allExamGuides[idx] = normalizeExamGuide(guidePayload);
+  }
+
+  renderSidebarGuideList();
+  renderExamGuides();
+
+  if (btnSave) btnSave.disabled = false;
+  if (saveText) saveText.textContent = 'บันทึก';
+
+  if (saveStatus) {
+    saveStatus.classList.remove('hidden');
+    setTimeout(() => {
+      saveStatus.classList.add('hidden');
+    }, 2500);
+  }
+}
+
+// Toggle Page Width between Standard A4 and Fullscreen Wide
+let isWordPageWide = false;
+function togglePageWidth() {
+  const paper = document.getElementById('printableA4Sheet');
+  const label = document.getElementById('labelPageWidth');
+  const icon = document.getElementById('iconPageWidth');
+  if (!paper) return;
+
+  isWordPageWide = !isWordPageWide;
+  if (isWordPageWide) {
+    paper.classList.remove('max-w-5xl');
+    paper.classList.add('max-w-7xl', 'w-full');
+    if (label) label.textContent = 'ย่อขนาด A4';
+    if (icon) icon.setAttribute('data-lucide', 'minimize-2');
+  } else {
+    paper.classList.remove('max-w-7xl');
+    paper.classList.add('max-w-5xl');
+    if (label) label.textContent = 'ขยายเต็มความกว้าง';
+    if (icon) icon.setAttribute('data-lucide', 'maximize-2');
+  }
   lucide.createIcons();
 }
 
@@ -1180,8 +1266,41 @@ function initEventListeners() {
   document.getElementById('btnCopyGuideToLine').addEventListener('click', () => {
     copyGuideToLine(currentReadingGuide);
   });
-  document.getElementById('btnEditCurrentGuide').addEventListener('click', () => {
+  document.getElementById('btnEditCurrentGuide')?.addEventListener('click', () => {
     openEditGuideModal(currentReadingGuide);
+  });
+
+  // Word Document Ribbon Formatting Tools (Rich Text)
+  document.getElementById('btnWordBold')?.addEventListener('click', () => {
+    document.execCommand('bold', false, null);
+  });
+  document.getElementById('btnWordItalic')?.addEventListener('click', () => {
+    document.execCommand('italic', false, null);
+  });
+  document.getElementById('btnWordUnderline')?.addEventListener('click', () => {
+    document.execCommand('underline', false, null);
+  });
+  document.getElementById('btnWordHighlight')?.addEventListener('click', () => {
+    document.execCommand('hiliteColor', false, '#fef08a');
+  });
+  document.getElementById('btnWordBullet')?.addEventListener('click', () => {
+    document.execCommand('insertUnorderedList', false, null);
+  });
+  document.getElementById('btnWordNumbered')?.addEventListener('click', () => {
+    document.execCommand('insertOrderedList', false, null);
+  });
+  document.getElementById('btnSaveWordDoc')?.addEventListener('click', saveWordDocument);
+  document.getElementById('btnTogglePageWidth')?.addEventListener('click', togglePageWidth);
+
+  // Shortcut Ctrl+S / Cmd+S to save Word document
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      const modal = document.getElementById('modalReadExamGuide');
+      if (modal && !modal.classList.contains('hidden')) {
+        e.preventDefault();
+        saveWordDocument();
+      }
+    }
   });
 
   // Exam Guide Edit Modal Close
