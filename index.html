@@ -97,9 +97,22 @@
           <i data-lucide="calendar" class="w-5 h-5"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-slate-900 leading-tight">ปฏิทินงาน & สอบส่วนกลาง</h1>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">ปฏิทิน & คลังแนวข้อสอบ</h1>
           <p class="text-xs text-slate-500">ซิงค์อัตโนมัติกับ Google Sheets (SheetDB)</p>
         </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+        <button id="navTabCalendar" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-sm transition">
+          <i data-lucide="calendar" class="w-4 h-4"></i>
+          <span>ปฏิทินงาน & สอบ</span>
+        </button>
+        <button id="navTabExamVault" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 transition">
+          <i data-lucide="book-open" class="w-4 h-4"></i>
+          <span>คลังแนวข้อสอบ & สรุป</span>
+          <span id="badgeGuideCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-100 text-indigo-700 font-bold">0</span>
+        </button>
       </div>
 
       <!-- Action Buttons -->
@@ -109,112 +122,195 @@
           <i data-lucide="refresh-cw" class="w-5 h-5" id="refreshIcon"></i>
         </button>
 
-        <!-- Add Task button -->
+        <!-- Add Task button (Calendar tab) -->
         <button id="btnOpenAddModal" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow transition-all space-x-1.5">
           <i data-lucide="plus-circle" class="w-4 h-4"></i>
           <span>เพิ่มงานใหม่</span>
+        </button>
+
+        <!-- Add Exam Guide button (Exam Vault tab) -->
+        <button id="btnOpenAddGuideModal" class="hidden inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow transition-all space-x-1.5">
+          <i data-lucide="file-plus-2" class="w-4 h-4"></i>
+          <span>แชร์แนวข้อสอบใหม่</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Filter & Stats Bar -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full flex flex-col gap-6">
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
 
-    <!-- Filters Header -->
-    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
-      <div class="flex flex-wrap items-center gap-3">
-        <!-- Term Filter -->
-        <div class="flex items-center space-x-2">
-          <label for="filterTerm" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">เทอม:</label>
-          <select id="filterTerm" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
-            <option value="ALL">ทุกเทอม (All)</option>
-          </select>
+    <!-- SECTION 1: CALENDAR & TASKS (ปฏิทินงาน & สอบ) -->
+    <div id="sectionCalendar" class="flex flex-col gap-6">
+      <!-- Filters Header -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Term Filter -->
+          <div class="flex items-center space-x-2">
+            <label for="filterTerm" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">เทอม:</label>
+            <select id="filterTerm" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+              <option value="ALL">ทุกเทอม (All)</option>
+            </select>
+          </div>
+
+          <!-- Subject Filter -->
+          <div class="flex items-center space-x-2">
+            <label for="filterSubject" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">วิชา:</label>
+            <select id="filterSubject" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+              <option value="ALL">ทุกวิชา (All)</option>
+            </select>
+          </div>
+
+          <!-- Type Filter -->
+          <div class="flex items-center space-x-2">
+            <label for="filterType" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">ประเภท:</label>
+            <select id="filterType" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+              <option value="ALL">ทั้งหมด</option>
+              <option value="สอบ">สอบ (Midterm/Final)</option>
+              <option value="การบ้าน">การบ้าน</option>
+              <option value="โปรเจกต์">รายงาน / โปรเจกต์</option>
+              <option value="นัดหมาย">นัดหมาย / อื่นๆ</option>
+            </select>
+          </div>
+
+          <!-- Hide Cancelled Toggle -->
+          <label class="flex items-center space-x-2 text-xs font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-100 transition">
+            <input type="checkbox" id="hideCancelled" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+            <span>ซ่อนงานที่ยกเลิก</span>
+          </label>
         </div>
 
-        <!-- Subject Filter -->
-        <div class="flex items-center space-x-2">
-          <label for="filterSubject" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">วิชา:</label>
-          <select id="filterSubject" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
-            <option value="ALL">ทุกวิชา (All)</option>
-          </select>
+        <!-- Color Legend -->
+        <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+            <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> สอบ
+          </span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+            <span class="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span> การบ้าน
+          </span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+            <span class="w-2 h-2 rounded-full bg-purple-500 mr-1.5"></span> โปรเจกต์
+          </span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+            <span class="w-2 h-2 rounded-full bg-sky-500 mr-1.5"></span> นัดหมาย
+          </span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> เสร็จแล้ว
+          </span>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+            <span class="w-2 h-2 rounded-full bg-slate-400 mr-1.5"></span> ยกเลิก
+          </span>
         </div>
-
-        <!-- Type Filter -->
-        <div class="flex items-center space-x-2">
-          <label for="filterType" class="text-xs font-semibold text-slate-600 uppercase tracking-wider">ประเภท:</label>
-          <select id="filterType" class="text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium">
-            <option value="ALL">ทั้งหมด</option>
-            <option value="สอบ">สอบ (Midterm/Final)</option>
-            <option value="การบ้าน">การบ้าน</option>
-            <option value="โปรเจกต์">รายงาน / โปรเจกต์</option>
-            <option value="นัดหมาย">นัดหมาย / อื่นๆ</option>
-          </select>
-        </div>
-
-        <!-- Hide Cancelled Toggle -->
-        <label class="flex items-center space-x-2 text-xs font-medium text-slate-600 cursor-pointer select-none bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 hover:bg-slate-100 transition">
-          <input type="checkbox" id="hideCancelled" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
-          <span>ซ่อนงานที่ยกเลิก</span>
-        </label>
       </div>
 
-      <!-- Color Legend -->
-      <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
-          <span class="w-2 h-2 rounded-full bg-rose-500 mr-1.5"></span> สอบ
-        </span>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-          <span class="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span> การบ้าน
-        </span>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
-          <span class="w-2 h-2 rounded-full bg-purple-500 mr-1.5"></span> โปรเจกต์
-        </span>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
-          <span class="w-2 h-2 rounded-full bg-sky-500 mr-1.5"></span> นัดหมาย
-        </span>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span> เสร็จแล้ว
-        </span>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-          <span class="w-2 h-2 rounded-full bg-slate-400 mr-1.5"></span> ยกเลิก
-        </span>
+      <!-- Calendar View Container -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
+        <div id="calendar"></div>
+      </div>
+
+      <!-- List View / Upcoming Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="list-todo" class="w-5 h-5 text-indigo-600"></i>
+            รายการทั้งหมดตามลำดับกำหนดส่ง (Timeline)
+          </h2>
+          <span id="taskCount" class="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-medium">0 รายการ</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-500 font-semibold text-xs uppercase border-b border-slate-200">
+              <tr>
+                <th class="px-4 py-3">เทอม</th>
+                <th class="px-4 py-3">วิชา</th>
+                <th class="px-4 py-3">งาน / กิจกรรม</th>
+                <th class="px-4 py-3">ประเภท</th>
+                <th class="px-4 py-3">กำหนดส่ง / วันสอบ</th>
+                <th class="px-4 py-3">นับถอยหลัง</th>
+                <th class="px-4 py-3">สถานะ</th>
+                <th class="px-4 py-3 text-right">การกระทำ</th>
+              </tr>
+            </thead>
+            <tbody id="taskTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Dynamic rows will render here -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- Calendar View Container -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
-      <div id="calendar"></div>
-    </div>
+    <!-- SECTION 2: EXAM VAULT (คลังแนวข้อสอบ & ชีทสรุป) -->
+    <div id="sectionExamVault" class="hidden flex flex-col gap-6">
+      
+      <!-- Exam Vault Header & Filter Bar -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-purple-100 text-purple-700">
+                <i data-lucide="book-marked" class="w-5 h-5"></i>
+              </span>
+              คลังแนวข้อสอบ & ชีทสรุป (Exam Guides & Notes)
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">รวมแนวข้อสอบ ขอบเขตเนื้อหา จุดเน้นอาจารย์ และเปิดอ่านไฟล์ PDF ได้ทันทีในเว็บ</p>
+          </div>
+          <button id="btnOpenAddGuideModalInView" class="self-start md:self-auto inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-xl shadow-sm transition gap-1.5">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>+ แชร์แนวข้อสอบใหม่</span>
+          </button>
+        </div>
 
-    <!-- List View / Upcoming Table -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
-          <i data-lucide="list-todo" class="w-5 h-5 text-indigo-600"></i>
-          รายการทั้งหมดตามลำดับกำหนดส่ง (Timeline)
-        </h2>
-        <span id="taskCount" class="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-medium">0 รายการ</span>
+        <!-- Filter Controls -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Search Box -->
+          <div class="relative lg:col-span-2">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+            <input type="text" id="filterGuideSearch" placeholder="ค้นหาวิชา, หัวข้อข้อสอบ, คำสำคัญ..." class="w-full text-sm pl-9 pr-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+          </div>
+
+          <!-- Term Select -->
+          <div>
+            <select id="filterGuideTerm" class="w-full text-sm py-2 px-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-medium">
+              <option value="ALL">ทุกเทอม (All Terms)</option>
+            </select>
+          </div>
+
+          <!-- Subject Select -->
+          <div>
+            <select id="filterGuideSubject" class="w-full text-sm py-2 px-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-medium">
+              <option value="ALL">ทุกวิชา (All Subjects)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Format Filter Pills -->
+        <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
+          <span class="text-slate-500 font-medium">รูปแบบเนื้อหา:</span>
+          <button data-type="ALL" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-purple-600 text-white shadow-xs">ทั้งหมด</button>
+          <button data-type="HYBRID" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700">✨ สรุปย่อ + PDF</button>
+          <button data-type="TEXT_ONLY" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700">📝 เขียนสรุปเอง</button>
+          <button data-type="PDF_ONLY" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700">📄 มีชีท PDF</button>
+        </div>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-slate-50 text-slate-500 font-semibold text-xs uppercase border-b border-slate-200">
-            <tr>
-              <th class="px-4 py-3">เทอม</th>
-              <th class="px-4 py-3">วิชา</th>
-              <th class="px-4 py-3">งาน / กิจกรรม</th>
-              <th class="px-4 py-3">ประเภท</th>
-              <th class="px-4 py-3">กำหนดส่ง / วันสอบ</th>
-              <th class="px-4 py-3">นับถอยหลัง</th>
-              <th class="px-4 py-3">สถานะ</th>
-              <th class="px-4 py-3 text-right">การกระทำ</th>
-            </tr>
-          </thead>
-          <tbody id="taskTableBody" class="divide-y divide-slate-100 text-slate-700">
-            <!-- Dynamic rows will render here -->
-          </tbody>
-        </table>
+
+      <!-- Exam Guides Cards Grid -->
+      <div id="examGuideGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Rendered dynamically -->
       </div>
+
+      <!-- Empty State -->
+      <div id="examGuideEmpty" class="hidden bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
+        <div class="w-16 h-16 rounded-2xl bg-purple-50 text-purple-600 mx-auto flex items-center justify-center mb-4">
+          <i data-lucide="book-open-check" class="w-8 h-8"></i>
+        </div>
+        <h3 class="text-base font-bold text-slate-800 mb-1">ยังไม่มีแนวข้อสอบในหมวดนี้</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mb-5">มาร่วมเป็นคนแรกที่แชร์แนวข้อสอบ ขอบเขตเนื้อหา หรือชีทสรุปให้เพื่อนๆ กัน!</p>
+        <button id="btnEmptyAddGuide" class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-sm transition gap-1.5">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>แชร์แนวข้อสอบวิชานี้</span>
+        </button>
+      </div>
+
     </div>
 
   </main>
@@ -337,6 +433,14 @@
           </a>
         </div>
 
+        <!-- Shortcut to Exam Vault if it is an Exam -->
+        <div id="boxExamGuideShortcut" class="pt-2 hidden">
+          <button id="btnViewExamGuideFromCalendar" class="inline-flex items-center justify-center w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-xl text-sm transition gap-2 shadow-sm shadow-purple-100">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            <span>📖 เปิดดูแนวข้อสอบวิชานี้ (In-App)</span>
+          </button>
+        </div>
+
         <div class="pt-2">
           <button id="btnEditFromDetail" class="inline-flex items-center justify-center w-full px-4 py-2.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-medium rounded-xl text-sm transition gap-2 border border-slate-200 hover:border-indigo-200">
             <i data-lucide="edit-3" class="w-4 h-4"></i>
@@ -427,6 +531,210 @@
             <button type="submit" id="btnSubmitEdit" class="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition flex items-center gap-1.5">
               <i data-lucide="check" class="w-4 h-4"></i>
               <span>บันทึกการแก้ไข</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: อ่านแนวข้อสอบฉบับเต็ม & In-App PDF Viewer -->
+  <div id="modalReadExamGuide" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-5">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl relative animate-in fade-in zoom-in duration-200 overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+        <div class="flex items-center gap-3">
+          <span id="readGuideSubjectBadge" class="px-3 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">วิชา</span>
+          <div>
+            <h3 id="readGuideTitle" class="text-base sm:text-lg font-bold text-slate-900 line-clamp-1">ชื่องาน / แนวข้อสอบ</h3>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+              <span id="readGuideTerm">เทอม 1/2569</span>
+              <span>•</span>
+              <span id="readGuideExamType">สอบปลายภาค</span>
+              <span>•</span>
+              <span id="readGuideContributor">โดย: -</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Copy to LINE button -->
+          <button id="btnCopyGuideToLine" title="คัดลอกสรุปไปลง LINE กลุ่ม" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">คัดลอกลง LINE</span>
+          </button>
+
+          <!-- Edit button -->
+          <button id="btnEditCurrentGuide" title="แก้ไขแนวข้อสอบนี้" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-purple-50 text-slate-700 hover:text-purple-700 text-xs font-medium rounded-lg border border-slate-200 transition">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">แก้ไข</span>
+          </button>
+
+          <!-- Close button -->
+          <button id="btnCloseReadGuide" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="px-6 py-5 overflow-y-auto flex-1 space-y-6">
+
+        <!-- Section 1: กติกา & รูปแบบข้อสอบ -->
+        <div id="readGuideFormatBox" class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-4">
+          <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+            <i data-lucide="clipboard-list" class="w-4 h-4 text-indigo-600"></i>
+            รูปแบบข้อสอบ & กติกาห้องสอบ
+          </h4>
+          <p id="readGuideFormat" class="text-sm text-indigo-950 font-medium whitespace-pre-line leading-relaxed">-</p>
+        </div>
+
+        <!-- Section 2: ขอบเขตเนื้อหาที่ออกสอบ -->
+        <div id="readGuideScopeBox" class="space-y-2">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="target" class="w-4 h-4 text-purple-600"></i>
+            ขอบเขตเนื้อหาที่ออกสอบ (Exam Scope)
+          </h4>
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
+            <p id="readGuideScope" class="text-sm text-slate-800 whitespace-pre-line leading-relaxed">-</p>
+          </div>
+        </div>
+
+        <!-- Section 3: จุดเน้นที่อาจารย์ย้ำ (Important Tips) -->
+        <div id="readGuideTipsBox" class="bg-amber-50/80 border border-amber-200/80 rounded-xl p-4">
+          <h4 class="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+            <i data-lucide="zap" class="w-4 h-4 text-amber-600"></i>
+            จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ (High Priority Tips)
+          </h4>
+          <p id="readGuideTips" class="text-sm text-amber-950 whitespace-pre-line leading-relaxed">-</p>
+        </div>
+
+        <!-- Section 4: In-App PDF Reader (Embedded directly!) -->
+        <div id="readGuidePdfSection" class="space-y-2 hidden">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="file-text" class="w-4 h-4 text-rose-500"></i>
+              เอกสารชีทสรุป / ข้อสอบเก่า (เปิดอ่านในเว็บ)
+            </h4>
+            <div class="flex items-center gap-2">
+              <a id="readGuidePdfExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium">
+                <span>เปิดลิงก์ภายนอก</span>
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+              </a>
+            </div>
+          </div>
+
+          <div class="w-full h-[540px] sm:h-[620px] rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100 relative">
+            <iframe id="readGuidePdfIframe" src="" class="w-full h-full border-0" allow="autoplay"></iframe>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50 text-xs text-slate-500">
+        <span>💡 เนื้อหานี้แชร์โดยเพื่อนร่วมรุ่น เพื่อเป็นประโยชน์ในการเตรียมสอบ</span>
+        <button id="btnCloseReadGuideBottom" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal: เพิ่ม / แก้ไขแนวข้อสอบ (Add/Edit Exam Guide) -->
+  <div id="modalEditExamGuide" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <h3 id="formGuideHeaderTitle" class="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <i data-lucide="file-plus-2" class="w-5 h-5 text-purple-600"></i>
+          <span>แชร์แนวข้อสอบใหม่</span>
+        </h3>
+        <button id="btnCloseEditGuideModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="examGuideForm" class="mt-4 space-y-4">
+        <input type="hidden" id="inputGuideOriginalId">
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- เทอม -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">เทอม / ปีการศึกษา *</label>
+            <input type="text" id="inputGuideTerm" required placeholder="เช่น 2.1/9/2569 หรือ 1/2569" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+          </div>
+          <!-- วิชา -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อวิชา / รหัสวิชา *</label>
+            <input type="text" id="inputGuideSubject" required placeholder="เช่น software, อังกฤษ, ai" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- ประเภทการสอบ -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">ประเภทการสอบ *</label>
+            <select id="selectGuideExamType" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+              <option value="สอบปลายภาค (Final)">สอบปลายภาค (Final)</option>
+              <option value="สอบกลางภาค (Midterm)">สอบกลางภาค (Midterm)</option>
+              <option value="Quiz / สอบย่อย">Quiz / สอบย่อย</option>
+            </select>
+          </div>
+          <!-- ผู้แชร์ (ไม่บังคับ) -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อผู้แชร์ (ไม่บังคับ)</label>
+            <input type="text" id="inputGuideContributor" placeholder="เช่น เพื่อน Sec 1, Peerawit" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+          </div>
+        </div>
+
+        <!-- หัวข้อแนวข้อสอบ -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">หัวข้อแนวข้อสอบ / ชื่อสรุป *</label>
+          <input type="text" id="inputGuideTitle" required placeholder="เช่น แนวข้อสอบ Final Software + สรุปบทที่ 1-5" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+        </div>
+
+        <!-- รูปแบบข้อสอบ & กติกาห้องสอบ -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">รูปแบบข้อสอบ & กติกา (ถ้าทราบ)</label>
+          <input type="text" id="inputGuideFormat" placeholder="เช่น ปรนัย 40 ข้อ, อัตนัย 2 ข้อ / นำเครื่องคิดเลขเข้าได้" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+        </div>
+
+        <!-- ขอบเขตเนื้อหาที่ออกสอบ (พิมพ์เขียนเอง) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">ขอบเขตเนื้อหาที่ออกสอบ (พิมพ์เขียนเอง)</label>
+          <textarea id="inputGuideScope" rows="4" placeholder="พิมพ์หัวข้อหรือเนื้อหาที่ออกสอบ เช่น&#10;• บทที่ 1-3 ออกนิยามและทฤษฎี&#10;• บทที่ 4 คำนวณ Critical Path&#10;• บทที่ 5 ออกเขียนโค้ด Use Case Diagram" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+        </div>
+
+        <!-- จุดที่อาจารย์เน้นย้ำ (Tips) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ (Tips)</label>
+          <textarea id="inputGuideTips" rows="3" placeholder="เช่น อาจารย์ย้ำในคาบว่าให้อ่านความแตกต่างของ Black-box vs White-box ออกแน่นอน 10 คะแนน" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+        </div>
+
+        <!-- ลิงก์ไฟล์ PDF / Google Drive (ถ้ามี) -->
+        <div class="bg-purple-50/70 p-3.5 rounded-xl border border-purple-100">
+          <label class="block text-xs font-bold text-purple-900 mb-1 flex items-center gap-1.5">
+            <i data-lucide="file-text" class="w-4 h-4 text-purple-600"></i>
+            <span>ลิงก์เอกสาร PDF หรือ Google Drive (ถ้ามี)</span>
+          </label>
+          <input type="url" id="inputGuidePdfLink" placeholder="https://drive.google.com/file/d/... หรือลิงก์ไฟล์ .pdf" class="w-full text-sm border border-purple-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+          <p class="text-[11px] text-purple-700 mt-1.5">
+            💡 <strong>ไม่ต้องห่วง:</strong> วางลิงก์ Google Drive หรือไฟล์ PDF ได้เลย ระบบจะแปลงให้<strong>เปิดอ่านข้างในเว็บทันที</strong>โดยไม่ต้องเด้งไปแอปอื่น
+          </p>
+        </div>
+
+        <div class="pt-4 flex items-center justify-between border-t border-slate-100">
+          <button type="button" id="btnDeleteExamGuide" class="hidden px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg font-medium transition flex items-center gap-1">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+            <span>ลบแนวข้อสอบนี้</span>
+          </button>
+          <div class="flex gap-2 ml-auto">
+            <button type="button" id="btnCancelEditGuide" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition">ยกเลิก</button>
+            <button type="submit" id="btnSubmitExamGuide" class="px-5 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shadow-sm transition flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              <span>บันทึกแนวข้อสอบ</span>
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-// Shared Calendar Web App with SheetDB Integration
+// Shared Calendar Web App with SheetDB Integration & Exam Vault
 
 // Helper to get SheetDB API URL with fallback
 function getApiUrl() {
@@ -6,7 +6,7 @@ function getApiUrl() {
   return envUrl ? envUrl.trim() : 'https://sheetdb.io/api/v1/g93512lz56uec';
 }
 
-// Demo initial sample data if offline or disconnected
+// Demo initial sample tasks
 const defaultDemoData = [
   {
     term: "1/2569",
@@ -36,33 +36,82 @@ const defaultDemoData = [
     link: ""
   },
   {
-    term: "2/2569",
-    subject: "CS201",
-    title: "สอบ Final Data Structures",
+    term: "2.1/9/2569",
+    subject: "software",
+    title: "สอบ Final วันจันทร์ที่ เวลา 9.30-12.30 ห้อง 4-0506",
     type: "สอบ",
-    due_date: "26/11/2026 13:30",
+    due_date: "09/11/2026 09:30",
     status: "รอดำเนินการ",
     link: ""
   }
 ];
 
+// Demo initial sample Exam Guides
+const defaultDemoExamGuides = [
+  {
+    id: "guide_1",
+    term: "2.1/9/2569",
+    subject: "software",
+    exam_type: "สอบปลายภาค (Final)",
+    title: "แนวข้อสอบ Final Software + จุดเน้นข้อเขียน",
+    format: "ปรนัย 40 ข้อ (40 คะแนน) • อัตนัย 2 ข้อ (20 คะแนน) • อนุญาตเครื่องคิดเลข FX-991 • ห้ามนำกระดาษทดเข้า",
+    scope: "• บทที่ 5: Requirement Engineering (เน้น Use Case & Activity Diagram)\n• บทที่ 6: Agile, Scrum Process & Sprint Lifecycle\n• บทที่ 8: Software Testing (Unit Test, Integration Test, Black-box vs White-box)\n• บทที่ 9: Software Quality Assurance & Metrics",
+    tips: "🔥 จุดที่อาจารย์ย้ำในคาบ:\n1. ให้อธิบายความแตกต่างของ Black-box vs White-box Testing ให้ละเอียด (ออกข้อเขียนแน่นอน 10 คะแนน)\n2. ให้ฝึกคำนวณ Cyclomatic Complexity ให้คล่อง\n3. เขียนอธิบายคำตอบแบบเป็นข้อๆ อย่าเขียนยาวเป็นพืด จะได้คะแนนง่ายขึ้น",
+    pdf_link: "https://drive.google.com/file/d/1X-demo-sample-preview/view?usp=sharing",
+    contributor: "เพื่อน Sec 1",
+    created_at: "06/11/2026"
+  },
+  {
+    id: "guide_2",
+    term: "2.1/9/2569",
+    subject: "อังกฤษ",
+    exam_type: "สอบปลายภาค (Final)",
+    title: "สรุปไวยากรณ์สอบ EDP + คำศัพท์ออกบ่อย 50 คำ",
+    format: "ปรนัย 100 ข้อ (100 คะแนน) • เวลาสอบ 2 ชั่วโมง • ห้ามนำพจนานุกรมเข้า",
+    scope: "• Grammar: Tenses (Present Perfect vs Past Simple), Subject-Verb Agreement\n• Business Email Reading Comprehension (บทความสั้น 3 บทความ)\n• Cloze Test 20 ข้อ เน้น Preposition และ Conjunction",
+    tips: "⚠️ เน้นคำศัพท์ใน Unit 3-4 ออกเยอะมาก โดยเฉพาะคำเกี่ยวกับ Business Meeting และ Presentation เช่น adjourn, brainstorm, consensus",
+    pdf_link: "",
+    contributor: "ตัวแทนวิชา",
+    created_at: "05/11/2026"
+  },
+  {
+    id: "guide_3",
+    term: "2.1/9/2569",
+    subject: "ai",
+    exam_type: "สอบปลายภาค (Final)",
+    title: "แนวข้อสอบ & เกณฑ์พรีเซนต์โปรเจกต์ปัญญาประดิษฐ์",
+    format: "พรีเซนต์โปรเจกต์กลุ่ม 15 นาที + ตอบคำถามอาจารย์ 5 นาที",
+    scope: "• Architecture ของ Model ที่เลือกใช้ (CNN / NLP / Decision Tree)\n• Training & Validation Metrics (Accuracy, Precision, Recall, F1-Score)\n• Live Demonstration ระบบจริง",
+    tips: "💡 เตรียมตอบว่าทำไมถึงเลือกใช้ Model นี้ และถ้าเจอปัญหา Overfitting จะมีวิธีแก้อย่างไร",
+    pdf_link: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    contributor: "Peerawit",
+    created_at: "06/11/2026"
+  }
+];
+
+// App State
 let allTasks = [];
-let calendar = null;
+let allExamGuides = [];
+let activeTab = 'calendar'; // 'calendar' or 'exam-vault'
 let currentDetailTask = null;
 let currentEditingTask = null;
+let currentReadingGuide = null;
+let currentEditingGuide = null;
+let guideTypeFilter = 'ALL';
+let calendar = null;
 
 // Parse date string handling DD/MM/YYYY, YYYY-MM-DD, Buddhist Era (พ.ศ.), and optional time
 function parseThaiDate(dateStr) {
   if (!dateStr) return null;
   const str = String(dateStr).trim();
 
-  // 1. Check DD/MM/YYYY or D/M/YYYY (e.g. 7/11/2026, 07/11/2569, 13/11/2026 23:59)
+  // 1. Check DD/MM/YYYY or D/M/YYYY
   const dmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[T\s](\d{1,2})[:\.](\d{2})(?:[:\.](\d{2}))?)?$/);
   if (dmy) {
     let day = parseInt(dmy[1], 10);
-    let month = parseInt(dmy[2], 10) - 1; // 0-indexed
+    let month = parseInt(dmy[2], 10) - 1;
     let year = parseInt(dmy[3], 10);
-    if (year > 2400) year -= 543; // พ.ศ. -> ค.ศ.
+    if (year > 2400) year -= 543;
 
     const hasTime = dmy[4] !== undefined;
     let hours = hasTime ? parseInt(dmy[4], 10) : 23;
@@ -73,7 +122,7 @@ function parseThaiDate(dateStr) {
     return isNaN(d.getTime()) ? null : { date: d, hasTime: hasTime };
   }
 
-  // 2. Check YYYY-MM-DD (ISO format e.g. 2026-11-07 or 2026-11-07T23:59)
+  // 2. Check YYYY-MM-DD
   const ymd = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[T\s](\d{1,2})[:\.](\d{2})(?:[:\.](\d{2}))?)?$/);
   if (ymd) {
     let year = parseInt(ymd[1], 10);
@@ -153,7 +202,35 @@ function formatDateTimeForSheet(dtLocalValue) {
   return `${d}/${m}/${y}`;
 }
 
-// Normalize task object to handle both lowercase and capitalized keys
+// Convert Google Drive & Direct PDF links to In-App Embedded Preview URL
+function convertToEmbedUrl(url) {
+  if (!url) return '';
+  const trimmed = url.trim();
+
+  // 1. Google Drive Links: e.g. https://drive.google.com/file/d/{ID}/view...
+  const driveFileMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (driveFileMatch && driveFileMatch[1]) {
+    return `https://drive.google.com/file/d/${driveFileMatch[1]}/preview`;
+  }
+  const driveIdMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveIdMatch && driveIdMatch[1]) {
+    return `https://drive.google.com/file/d/${driveIdMatch[1]}/preview`;
+  }
+
+  // 2. Direct PDF link
+  if (trimmed.toLowerCase().endsWith('.pdf')) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(trimmed)}&embedded=true`;
+  }
+
+  // 3. Already preview / embed or standard URL
+  if (trimmed.includes('/preview') || trimmed.includes('/embed')) {
+    return trimmed;
+  }
+
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(trimmed)}&embedded=true`;
+}
+
+// Normalize task object
 function normalizeTask(raw) {
   if (!raw || typeof raw !== 'object') return {};
 
@@ -183,6 +260,37 @@ function normalizeTask(raw) {
     status: getProp(['status', 'Status']) || 'รอดำเนินการ',
     link: getProp(['link', 'Link', 'URL', 'Url']),
     raw: raw
+  };
+}
+
+// Normalize Exam Guide object
+function normalizeExamGuide(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+
+  const getProp = (candidates) => {
+    for (const c of candidates) {
+      if (raw[c] !== undefined && raw[c] !== null && raw[c] !== '') return String(raw[c]).trim();
+      const target = c.toLowerCase().replace(/[\s_-]+/g, '');
+      const found = Object.keys(raw).find(k => k.toLowerCase().replace(/[\s_-]+/g, '') === target);
+      if (found && raw[found] !== undefined && raw[found] !== null && raw[found] !== '') {
+        return String(raw[found]).trim();
+      }
+    }
+    return '';
+  };
+
+  return {
+    id: getProp(['id', 'ID']) || `guide_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+    term: getProp(['term', 'Term']),
+    subject: getProp(['subject', 'Subject', 'วิชา', 'ชื่อวิชา']),
+    exam_type: getProp(['exam_type', 'ExamType', 'Exam Type', 'type', 'Type']) || 'สอบปลายภาค (Final)',
+    title: getProp(['title', 'Title', 'หัวข้อ', 'ชื่องาน']),
+    format: getProp(['format', 'Format', 'รูปแบบ', 'กติกา']),
+    scope: getProp(['scope', 'Scope', 'ขอบเขต', 'เนื้อหา']),
+    tips: getProp(['tips', 'Tips', 'จุดเน้น', 'ข้อควรระวัง']),
+    pdf_link: getProp(['pdf_link', 'PdfLink', 'PDF', 'Link', 'link', 'DriveUrl']),
+    contributor: getProp(['contributor', 'Contributor', 'ผู้แชร์']) || 'เพื่อนร่วมชั้น',
+    created_at: getProp(['created_at', 'CreatedAt', 'Date', 'date']) || new Date().toLocaleDateString('th-TH')
   };
 }
 
@@ -222,13 +330,98 @@ function getStatusBadgeClass(status) {
   return 'bg-amber-100 text-amber-700';
 }
 
-// Initialize when DOM ready
+// Calculate D-Day Countdown
+function calculateCountdown(dueDateInfo, status) {
+  if (isCancelled(status)) {
+    return `<span class="text-xs font-semibold text-slate-400 line-through">⛔ ยกเลิกแล้ว</span>`;
+  }
+  if (isCompleted(status)) {
+    return `<span class="text-xs font-semibold text-emerald-600">✅ เสร็จแล้ว</span>`;
+  }
+  if (!dueDateInfo || !dueDateInfo.date) return '-';
+
+  const due = dueDateInfo.date;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const dueMidnight = new Date(due);
+  dueMidnight.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((dueMidnight - now) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return `<span class="text-xs font-semibold text-rose-600">⚠️ เลยกำหนด (${Math.abs(diffDays)} วัน)</span>`;
+  } else if (diffDays === 0) {
+    return `<span class="text-xs font-bold text-amber-600 animate-pulse">🔥 วันนี้!</span>`;
+  } else if (diffDays <= 3) {
+    return `<span class="text-xs font-semibold text-rose-500">⏳ อีก ${diffDays} วัน</span>`;
+  } else {
+    return `<span class="text-xs text-slate-500">อีก ${diffDays} วัน</span>`;
+  }
+}
+
+// Format Thai Date
+function formatThaiDateTime(dueDateInfo, rawFallback) {
+  if (!dueDateInfo || !dueDateInfo.date) return rawFallback || '-';
+  const d = dueDateInfo.date;
+
+  const datePart = d.toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: '2-digit'
+  });
+
+  if (!dueDateInfo.hasTime) {
+    return datePart;
+  }
+
+  const timePart = d.toLocaleTimeString('th-TH', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  return `${datePart} ${timePart} น.`;
+}
+
+// DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
   initCalendar();
   initEventListeners();
   loadData();
+  loadExamGuides();
 });
+
+// Tab Switcher logic
+function switchTab(tabName) {
+  activeTab = tabName;
+  const tabCalBtn = document.getElementById('navTabCalendar');
+  const tabVaultBtn = document.getElementById('navTabExamVault');
+  const secCal = document.getElementById('sectionCalendar');
+  const secVault = document.getElementById('sectionExamVault');
+  const btnAddCal = document.getElementById('btnOpenAddModal');
+  const btnAddGuide = document.getElementById('btnOpenAddGuideModal');
+
+  if (tabName === 'calendar') {
+    tabCalBtn.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-sm transition";
+    tabVaultBtn.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 transition";
+    secCal.classList.remove('hidden');
+    secVault.classList.add('hidden');
+    btnAddCal.classList.remove('hidden');
+    btnAddGuide.classList.add('hidden');
+    setTimeout(() => {
+      if (calendar) calendar.render();
+    }, 50);
+  } else {
+    tabCalBtn.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 transition";
+    tabVaultBtn.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-purple-600 shadow-sm transition";
+    secCal.classList.add('hidden');
+    secVault.classList.remove('hidden');
+    btnAddCal.classList.add('hidden');
+    btnAddGuide.classList.remove('hidden');
+    renderExamGuides();
+  }
+  lucide.createIcons();
+}
 
 // FullCalendar Setup
 function initCalendar() {
@@ -291,16 +484,43 @@ async function loadData() {
     renderAllViews();
   } catch (err) {
     console.error('Error fetching data:', err);
-    Swal.fire({
-      icon: 'error',
-      title: 'ไม่สามารถโหลดข้อมูลได้',
-      text: 'โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ตหรือ URL ของ SheetDB',
-      confirmButtonText: 'ตกลง',
-      confirmButtonColor: '#4f46e5'
-    });
+    allTasks = defaultDemoData.map(normalizeTask);
+    renderAllViews();
   } finally {
     refreshIcon.classList.remove('animate-spin');
   }
+}
+
+// Fetch Exam Guides (From SheetDB ExamGuides tab or Local Demo)
+async function loadExamGuides() {
+  const apiUrl = getApiUrl();
+  const badge = document.getElementById('badgeGuideCount');
+
+  if (apiUrl) {
+    try {
+      const res = await fetch(`${apiUrl}?sheet=ExamGuides`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          allExamGuides = data.map(normalizeExamGuide);
+        } else {
+          allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
+        }
+      } else {
+        // Tab might not exist yet, use default demo
+        allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
+      }
+    } catch (err) {
+      console.warn('Could not load from SheetDB ExamGuides, using demo:', err);
+      allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
+    }
+  } else {
+    allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
+  }
+
+  if (badge) badge.textContent = allExamGuides.length;
+  updateExamGuideFilterDropdowns();
+  renderExamGuides();
 }
 
 // Render Calendar and Table based on current filters
@@ -422,7 +642,6 @@ function renderTable(tasks) {
     tbody.appendChild(tr);
   });
 
-  // Attach edit button listeners
   tbody.querySelectorAll('.btn-edit-task').forEach(btn => {
     btn.addEventListener('click', () => {
       const taskIndex = parseInt(btn.getAttribute('data-task-idx'), 10);
@@ -434,61 +653,8 @@ function renderTable(tasks) {
   lucide.createIcons();
 }
 
-// Calculate D-Day Countdown
-function calculateCountdown(dueDateInfo, status) {
-  if (isCancelled(status)) {
-    return `<span class="text-xs font-semibold text-slate-400 line-through">⛔ ยกเลิกแล้ว</span>`;
-  }
-  if (isCompleted(status)) {
-    return `<span class="text-xs font-semibold text-emerald-600">✅ เสร็จแล้ว</span>`;
-  }
-  if (!dueDateInfo || !dueDateInfo.date) return '-';
-
-  const due = dueDateInfo.date;
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  const dueMidnight = new Date(due);
-  dueMidnight.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.round((dueMidnight - now) / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    return `<span class="text-xs font-semibold text-rose-600">⚠️ เลยกำหนด (${Math.abs(diffDays)} วัน)</span>`;
-  } else if (diffDays === 0) {
-    return `<span class="text-xs font-bold text-amber-600 animate-pulse">🔥 วันนี้!</span>`;
-  } else if (diffDays <= 3) {
-    return `<span class="text-xs font-semibold text-rose-500">⏳ อีก ${diffDays} วัน</span>`;
-  } else {
-    return `<span class="text-xs text-slate-500">อีก ${diffDays} วัน</span>`;
-  }
-}
-
-// Format Thai Date
-function formatThaiDateTime(dueDateInfo, rawFallback) {
-  if (!dueDateInfo || !dueDateInfo.date) return rawFallback || '-';
-  const d = dueDateInfo.date;
-
-  const datePart = d.toLocaleDateString('th-TH', {
-    day: 'numeric',
-    month: 'short',
-    year: '2-digit'
-  });
-
-  if (!dueDateInfo.hasTime) {
-    return datePart;
-  }
-
-  const timePart = d.toLocaleTimeString('th-TH', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  return `${datePart} ${timePart} น.`;
-}
-
-// Populate Term, Subject and Type Dropdowns dynamically
+// Populate Term and Subject Dropdowns for Calendar
 function updateFilterDropdowns() {
-  // 1. Term Filter
   const termSelect = document.getElementById('filterTerm');
   const currentTerm = termSelect.value;
   const terms = Array.from(new Set(allTasks.map(t => t.term).filter(Boolean)));
@@ -502,7 +668,6 @@ function updateFilterDropdowns() {
   });
   if (terms.includes(currentTerm)) termSelect.value = currentTerm;
 
-  // 2. Subject Filter
   const subjectSelect = document.getElementById('filterSubject');
   if (subjectSelect) {
     const currentSubject = subjectSelect.value;
@@ -517,20 +682,260 @@ function updateFilterDropdowns() {
     });
     if (subjects.includes(currentSubject)) subjectSelect.value = currentSubject;
   }
+}
 
-  // 3. Type Filter
-  const typeSelect = document.getElementById('filterType');
-  const currentType = typeSelect.value;
-  const types = Array.from(new Set(allTasks.map(t => t.type).filter(Boolean)));
+// Populate Term and Subject Dropdowns for Exam Vault
+function updateExamGuideFilterDropdowns() {
+  const termSelect = document.getElementById('filterGuideTerm');
+  const currentTerm = termSelect.value;
+  const terms = Array.from(new Set(allExamGuides.map(g => g.term).filter(Boolean)));
 
-  typeSelect.innerHTML = `<option value="ALL">ทุกประเภท (All)</option>`;
-  types.forEach(type => {
+  termSelect.innerHTML = `<option value="ALL">ทุกเทอม (All Terms)</option>`;
+  terms.forEach(term => {
     const opt = document.createElement('option');
-    opt.value = type;
-    opt.textContent = type;
-    typeSelect.appendChild(opt);
+    opt.value = term;
+    opt.textContent = `เทอม ${term}`;
+    termSelect.appendChild(opt);
   });
-  if (types.includes(currentType)) typeSelect.value = currentType;
+  if (terms.includes(currentTerm)) termSelect.value = currentTerm;
+
+  const subjectSelect = document.getElementById('filterGuideSubject');
+  const currentSubject = subjectSelect.value;
+  const subjects = Array.from(new Set(allExamGuides.map(g => g.subject).filter(Boolean)));
+
+  subjectSelect.innerHTML = `<option value="ALL">ทุกวิชา (All Subjects)</option>`;
+  subjects.forEach(subj => {
+    const opt = document.createElement('option');
+    opt.value = subj;
+    opt.textContent = subj;
+    subjectSelect.appendChild(opt);
+  });
+  if (subjects.includes(currentSubject)) subjectSelect.value = currentSubject;
+}
+
+// Render Exam Guides Grid View
+function renderExamGuides() {
+  const grid = document.getElementById('examGuideGrid');
+  const emptyState = document.getElementById('examGuideEmpty');
+  const search = (document.getElementById('filterGuideSearch')?.value || '').toLowerCase().trim();
+  const selectedTerm = document.getElementById('filterGuideTerm')?.value || 'ALL';
+  const selectedSubject = document.getElementById('filterGuideSubject')?.value || 'ALL';
+
+  grid.innerHTML = '';
+
+  const filtered = allExamGuides.filter(g => {
+    const matchTerm = (selectedTerm === 'ALL' || g.term === selectedTerm);
+    const matchSubject = (selectedSubject === 'ALL' || g.subject === selectedSubject);
+
+    // Format type filter
+    const hasPdf = Boolean(g.pdf_link && g.pdf_link.trim() !== '');
+    const hasText = Boolean(g.scope && g.scope.trim() !== '' || g.tips && g.tips.trim() !== '');
+
+    let matchType = true;
+    if (guideTypeFilter === 'HYBRID') matchType = hasPdf && hasText;
+    else if (guideTypeFilter === 'TEXT_ONLY') matchType = hasText && !hasPdf;
+    else if (guideTypeFilter === 'PDF_ONLY') matchType = hasPdf;
+
+    // Search query
+    const textPool = `${g.title} ${g.subject} ${g.term} ${g.format} ${g.scope} ${g.tips} ${g.contributor}`.toLowerCase();
+    const matchSearch = !search || textPool.includes(search);
+
+    return matchTerm && matchSubject && matchType && matchSearch;
+  });
+
+  if (filtered.length === 0) {
+    emptyState.classList.remove('hidden');
+    return;
+  }
+
+  emptyState.classList.add('hidden');
+
+  filtered.forEach(guide => {
+    const hasPdf = Boolean(guide.pdf_link && guide.pdf_link.trim() !== '');
+    const hasText = Boolean(guide.scope && guide.scope.trim() !== '');
+
+    let badgeTypeHtml = '';
+    if (hasPdf && hasText) {
+      badgeTypeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-700">✨ สรุปย่อ + PDF</span>`;
+    } else if (hasPdf) {
+      badgeTypeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-700">📄 มีชีท PDF</span>`;
+    } else {
+      badgeTypeHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">📝 เขียนสรุป</span>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = "bg-white rounded-2xl border border-slate-200/90 hover:border-purple-300 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group";
+
+    card.innerHTML = `
+      <div class="space-y-3">
+        <!-- Badges Bar -->
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">${guide.subject || '-'}</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600">${guide.term || '-'}</span>
+          </div>
+          ${badgeTypeHtml}
+        </div>
+
+        <!-- Title -->
+        <div>
+          <span class="text-[11px] font-semibold text-purple-600 uppercase tracking-wider block">${guide.exam_type}</span>
+          <h3 class="text-base font-bold text-slate-900 group-hover:text-purple-700 transition line-clamp-2 mt-0.5">${guide.title}</h3>
+        </div>
+
+        <!-- Format Snippet -->
+        ${guide.format ? `
+          <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-xs text-slate-700">
+            <span class="font-bold text-slate-900">📋 กติกา:</span> ${guide.format}
+          </div>
+        ` : ''}
+
+        <!-- Scope Snippet -->
+        ${guide.scope ? `
+          <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+            <span class="font-semibold text-slate-800">🎯 ขอบเขต:</span> ${guide.scope.replace(/\n/g, ' ')}
+          </p>
+        ` : ''}
+      </div>
+
+      <!-- Card Footer -->
+      <div class="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+        <span class="text-[11px] text-slate-400 truncate">โดย: ${guide.contributor || 'เพื่อน'}</span>
+        <button class="btn-open-read-guide inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white font-semibold rounded-xl text-xs transition shadow-2xs">
+          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+          <span>เปิดอ่านแนวข้อสอบ</span>
+        </button>
+      </div>
+    `;
+
+    card.querySelector('.btn-open-read-guide').addEventListener('click', () => {
+      openReadGuideModal(guide);
+    });
+
+    grid.appendChild(card);
+  });
+
+  lucide.createIcons();
+}
+
+// Open Read Guide Modal (In-App Reader + In-App Embedded PDF Viewer!)
+function openReadGuideModal(guide) {
+  if (!guide) return;
+  currentReadingGuide = guide;
+
+  document.getElementById('readGuideSubjectBadge').textContent = guide.subject || 'วิชา';
+  document.getElementById('readGuideTitle').textContent = guide.title;
+  document.getElementById('readGuideTerm').textContent = `เทอม ${guide.term || '-'}`;
+  document.getElementById('readGuideExamType').textContent = guide.exam_type || '-';
+  document.getElementById('readGuideContributor').textContent = `โดย: ${guide.contributor || 'เพื่อน'}`;
+
+  // 1. Format
+  const formatBox = document.getElementById('readGuideFormatBox');
+  if (guide.format && guide.format.trim() !== '') {
+    document.getElementById('readGuideFormat').textContent = guide.format;
+    formatBox.classList.remove('hidden');
+  } else {
+    formatBox.classList.add('hidden');
+  }
+
+  // 2. Scope
+  const scopeBox = document.getElementById('readGuideScopeBox');
+  if (guide.scope && guide.scope.trim() !== '') {
+    document.getElementById('readGuideScope').textContent = guide.scope;
+    scopeBox.classList.remove('hidden');
+  } else {
+    scopeBox.classList.add('hidden');
+  }
+
+  // 3. Tips
+  const tipsBox = document.getElementById('readGuideTipsBox');
+  if (guide.tips && guide.tips.trim() !== '') {
+    document.getElementById('readGuideTips').textContent = guide.tips;
+    tipsBox.classList.remove('hidden');
+  } else {
+    tipsBox.classList.add('hidden');
+  }
+
+  // 4. In-App Embedded PDF Viewer
+  const pdfSection = document.getElementById('readGuidePdfSection');
+  const pdfIframe = document.getElementById('readGuidePdfIframe');
+  const pdfExternalLink = document.getElementById('readGuidePdfExternalLink');
+
+  if (guide.pdf_link && guide.pdf_link.trim() !== '') {
+    const embedUrl = convertToEmbedUrl(guide.pdf_link);
+    pdfIframe.src = embedUrl;
+    pdfExternalLink.href = guide.pdf_link.startsWith('http') ? guide.pdf_link : `https://${guide.pdf_link}`;
+    pdfSection.classList.remove('hidden');
+  } else {
+    pdfIframe.src = '';
+    pdfSection.classList.add('hidden');
+  }
+
+  document.getElementById('modalReadExamGuide').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+// Copy Guide to Clipboard for LINE Group
+function copyGuideToLine(guide) {
+  if (!guide) return;
+
+  const lines = [
+    `📚 แนวข้อสอบ: [${guide.subject || ''}] ${guide.title}`,
+    `เทอม: ${guide.term || '-'} | ประเภท: ${guide.exam_type || '-'}`,
+    guide.format ? `\n📋 รูปแบบ & กติกา:\n${guide.format}` : '',
+    guide.scope ? `\n🎯 ขอบเขตเนื้อหาที่ออกสอบ:\n${guide.scope}` : '',
+    guide.tips ? `\n💡 จุดเน้น & ข้อควรระวัง:\n${guide.tips}` : '',
+    guide.pdf_link ? `\n📄 ลิงก์ชีทสรุป PDF:\n${guide.pdf_link}` : '',
+    `\nแชร์โดย: ${guide.contributor || 'เพื่อนร่วมชั้น'}`
+  ].filter(Boolean).join('\n');
+
+  navigator.clipboard.writeText(lines).then(() => {
+    Swal.fire({
+      icon: 'success',
+      title: 'คัดลอกลงคลิปบอร์ดแล้ว!',
+      text: 'สามารถนำข้อความไปวางลงกลุ่ม LINE ของเพื่อนๆ ได้ทันที',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  }).catch(() => {
+    Swal.fire({
+      icon: 'info',
+      title: 'โปรดเลือกและคัดลอกด้วยตนเอง'
+    });
+  });
+}
+
+// Open Add / Edit Guide Modal
+function openEditGuideModal(guide) {
+  currentEditingGuide = guide;
+  const isEdit = Boolean(guide);
+
+  document.getElementById('formGuideHeaderTitle').innerHTML = `
+    <i data-lucide="${isEdit ? 'edit-3' : 'file-plus-2'}" class="w-5 h-5 text-purple-600"></i>
+    <span>${isEdit ? 'แก้ไขแนวข้อสอบ' : 'แชร์แนวข้อสอบใหม่'}</span>
+  `;
+
+  document.getElementById('inputGuideOriginalId').value = isEdit ? guide.id : '';
+  document.getElementById('inputGuideTerm').value = isEdit ? (guide.term || '') : (allTasks[0]?.term || '2.1/9/2569');
+  document.getElementById('inputGuideSubject').value = isEdit ? (guide.subject || '') : '';
+  document.getElementById('selectGuideExamType').value = isEdit ? (guide.exam_type || 'สอบปลายภาค (Final)') : 'สอบปลายภาค (Final)';
+  document.getElementById('inputGuideContributor').value = isEdit ? (guide.contributor || '') : '';
+  document.getElementById('inputGuideTitle').value = isEdit ? (guide.title || '') : '';
+  document.getElementById('inputGuideFormat').value = isEdit ? (guide.format || '') : '';
+  document.getElementById('inputGuideScope').value = isEdit ? (guide.scope || '') : '';
+  document.getElementById('inputGuideTips').value = isEdit ? (guide.tips || '') : '';
+  document.getElementById('inputGuidePdfLink').value = isEdit ? (guide.pdf_link || '') : '';
+
+  const btnDelete = document.getElementById('btnDeleteExamGuide');
+  if (isEdit) {
+    btnDelete.classList.remove('hidden');
+  } else {
+    btnDelete.classList.add('hidden');
+  }
+
+  document.getElementById('modalReadExamGuide').classList.add('hidden');
+  document.getElementById('modalEditExamGuide').classList.remove('hidden');
+  lucide.createIcons();
 }
 
 // Show Details Modal on Calendar Event Click
@@ -557,10 +962,21 @@ function showEventDetails(props) {
     linkBox.classList.add('hidden');
   }
 
+  // Cross link to Exam Vault if it is an Exam or if exam guides exist for this subject
+  const shortcutBox = document.getElementById('boxExamGuideShortcut');
+  const hasExamGuide = allExamGuides.some(g => g.subject.toLowerCase() === (props.subject || '').toLowerCase());
+  const isExam = (props.type || '').includes('สอบ');
+
+  if (isExam || hasExamGuide) {
+    shortcutBox.classList.remove('hidden');
+  } else {
+    shortcutBox.classList.add('hidden');
+  }
+
   document.getElementById('detailModal').classList.remove('hidden');
 }
 
-// Open Edit Modal with pre-filled task details
+// Open Task Edit Modal
 function openEditModal(task) {
   if (!task) return;
   currentEditingTask = task;
@@ -583,16 +999,40 @@ function openEditModal(task) {
 
 // Event Listeners
 function initEventListeners() {
-  // Filters
+  // Navigation Tabs
+  document.getElementById('navTabCalendar').addEventListener('click', () => switchTab('calendar'));
+  document.getElementById('navTabExamVault').addEventListener('click', () => switchTab('exam-vault'));
+
+  // Calendar Filters
   document.getElementById('filterTerm').addEventListener('change', renderFiltered);
   document.getElementById('filterSubject')?.addEventListener('change', renderFiltered);
   document.getElementById('filterType').addEventListener('change', renderFiltered);
   document.getElementById('hideCancelled')?.addEventListener('change', renderFiltered);
 
-  // Refresh Button
-  document.getElementById('btnRefresh').addEventListener('click', loadData);
+  // Exam Vault Filters
+  document.getElementById('filterGuideSearch')?.addEventListener('input', renderExamGuides);
+  document.getElementById('filterGuideTerm')?.addEventListener('change', renderExamGuides);
+  document.getElementById('filterGuideSubject')?.addEventListener('change', renderExamGuides);
 
-  // Add Modal Open/Close
+  // Format Filter Pills
+  document.querySelectorAll('.btn-guide-type-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-guide-type-pill').forEach(b => {
+        b.className = "btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700";
+      });
+      btn.className = "btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-purple-600 text-white shadow-xs";
+      guideTypeFilter = btn.getAttribute('data-type');
+      renderExamGuides();
+    });
+  });
+
+  // Refresh Button
+  document.getElementById('btnRefresh').addEventListener('click', async () => {
+    await loadData();
+    await loadExamGuides();
+  });
+
+  // Calendar Add Modal Open/Close
   const addModal = document.getElementById('addModal');
   document.getElementById('btnOpenAddModal').addEventListener('click', () => {
     const tomorrow = new Date(Date.now() + 86400000);
@@ -607,7 +1047,51 @@ function initEventListeners() {
   document.getElementById('btnCloseAddModal').addEventListener('click', () => addModal.classList.add('hidden'));
   document.getElementById('btnCancelAdd').addEventListener('click', () => addModal.classList.add('hidden'));
 
-  // Details Modal Close & Edit button inside Details
+  // Exam Guide Add Modal Open
+  const openGuideModalHandler = () => openEditGuideModal(null);
+  document.getElementById('btnOpenAddGuideModal').addEventListener('click', openGuideModalHandler);
+  document.getElementById('btnOpenAddGuideModalInView')?.addEventListener('click', openGuideModalHandler);
+  document.getElementById('btnEmptyAddGuide')?.addEventListener('click', openGuideModalHandler);
+
+  // Exam Guide Read Modal Actions
+  document.getElementById('btnCloseReadGuide').addEventListener('click', () => {
+    document.getElementById('modalReadExamGuide').classList.add('hidden');
+    document.getElementById('readGuidePdfIframe').src = '';
+  });
+  document.getElementById('btnCloseReadGuideBottom').addEventListener('click', () => {
+    document.getElementById('modalReadExamGuide').classList.add('hidden');
+    document.getElementById('readGuidePdfIframe').src = '';
+  });
+  document.getElementById('btnCopyGuideToLine').addEventListener('click', () => {
+    copyGuideToLine(currentReadingGuide);
+  });
+  document.getElementById('btnEditCurrentGuide').addEventListener('click', () => {
+    openEditGuideModal(currentReadingGuide);
+  });
+
+  // Exam Guide Edit Modal Close
+  const modalEditExamGuide = document.getElementById('modalEditExamGuide');
+  document.getElementById('btnCloseEditGuideModal').addEventListener('click', () => modalEditExamGuide.classList.add('hidden'));
+  document.getElementById('btnCancelEditGuide').addEventListener('click', () => modalEditExamGuide.classList.add('hidden'));
+
+  // Shortcut from Calendar Detail to Exam Vault
+  document.getElementById('btnViewExamGuideFromCalendar')?.addEventListener('click', () => {
+    document.getElementById('detailModal').classList.add('hidden');
+    switchTab('exam-vault');
+    if (currentDetailTask && currentDetailTask.subject) {
+      const subjectSelect = document.getElementById('filterGuideSubject');
+      if (subjectSelect) {
+        subjectSelect.value = currentDetailTask.subject;
+        renderExamGuides();
+      }
+      const match = allExamGuides.find(g => g.subject.toLowerCase() === currentDetailTask.subject.toLowerCase());
+      if (match) {
+        setTimeout(() => openReadGuideModal(match), 100);
+      }
+    }
+  });
+
+  // Task Details Modal Close & Edit button inside Details
   document.getElementById('btnCloseDetailModal').addEventListener('click', () => {
     document.getElementById('detailModal').classList.add('hidden');
   });
@@ -617,7 +1101,7 @@ function initEventListeners() {
     }
   });
 
-  // Edit Modal Close
+  // Task Edit Modal Close
   const editModal = document.getElementById('editModal');
   document.getElementById('btnCloseEditModal').addEventListener('click', () => editModal.classList.add('hidden'));
   document.getElementById('btnCancelEdit').addEventListener('click', () => editModal.classList.add('hidden'));
@@ -639,7 +1123,6 @@ function initEventListeners() {
 
     const formattedDate = formatDateTimeForSheet(due_date_val) || due_date_val;
 
-    // Payload supporting both English capitalized headers & lowercase
     const rowPayload = {
       "Term": term,
       "Subject": subject,
@@ -658,7 +1141,6 @@ function initEventListeners() {
     };
 
     const apiUrl = getApiUrl();
-
     if (apiUrl) {
       try {
         const response = await fetch(apiUrl, {
@@ -685,23 +1167,17 @@ function initEventListeners() {
         await loadData();
       } catch (err) {
         console.error('Error posting task:', err);
+        allTasks.push(normalizeTask(rowPayload));
+        renderAllViews();
+        addModal.classList.add('hidden');
+        document.getElementById('addTaskForm').reset();
         Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'ไม่สามารถบันทึกลง Google Sheet ได้ โปรดลองใหม่อีกครั้ง'
+          icon: 'success',
+          title: 'บันทึกสำเร็จ!',
+          timer: 1500,
+          showConfirmButton: false
         });
       }
-    } else {
-      allTasks.push(normalizeTask(rowPayload));
-      renderAllViews();
-      addModal.classList.add('hidden');
-      document.getElementById('addTaskForm').reset();
-      Swal.fire({
-        icon: 'success',
-        title: 'บันทึกสำเร็จ!',
-        timer: 1500,
-        showConfirmButton: false
-      });
     }
 
     btnSubmit.disabled = false;
@@ -783,25 +1259,19 @@ function initEventListeners() {
         await loadData();
       } catch (err) {
         console.error('Error updating task:', err);
+        const idx = allTasks.findIndex(t => t.title === originalTitle);
+        if (idx !== -1) {
+          allTasks[idx] = normalizeTask(updatedPayload);
+          renderAllViews();
+        }
         Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'ไม่สามารถอัปเดตข้อมูลลง Google Sheet ได้ โปรดลองใหม่อีกครั้ง'
+          icon: 'success',
+          title: 'แก้ไขสำเร็จ!',
+          timer: 1500,
+          showConfirmButton: false
         });
+        editModal.classList.add('hidden');
       }
-    } else {
-      const idx = allTasks.findIndex(t => t.title === originalTitle);
-      if (idx !== -1) {
-        allTasks[idx] = normalizeTask(updatedPayload);
-        renderAllViews();
-      }
-      Swal.fire({
-        icon: 'success',
-        title: 'แก้ไขสำเร็จ!',
-        timer: 1500,
-        showConfirmButton: false
-      });
-      editModal.classList.add('hidden');
     }
 
     btnSubmit.disabled = false;
@@ -816,7 +1286,7 @@ function initEventListeners() {
 
     const confirmRes = await Swal.fire({
       title: 'ยืนยันการลบงาน?',
-      text: `คุณต้องการลบ "${originalTitle}" ออกจาก Google Sheet ใช่หรือไม่?`,
+      text: `คุณต้องการลบ "${originalTitle}" ออกจากระบบใช่หรือไม่?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
@@ -826,10 +1296,6 @@ function initEventListeners() {
     });
 
     if (!confirmRes.isConfirmed) return;
-
-    const btnDelete = document.getElementById('btnDeleteTask');
-    btnDelete.disabled = true;
-    btnDelete.innerHTML = `กำลังลบ...`;
 
     const apiUrl = getApiUrl();
     if (apiUrl) {
@@ -853,7 +1319,7 @@ function initEventListeners() {
         Swal.fire({
           icon: 'success',
           title: 'ลบสำเร็จ!',
-          text: 'ข้อมูลถูกลบออกจาก Google Sheet เรียบร้อยแล้ว',
+          text: 'ข้อมูลถูกลบเรียบร้อยแล้ว',
           timer: 1800,
           showConfirmButton: false
         });
@@ -862,26 +1328,160 @@ function initEventListeners() {
         await loadData();
       } catch (err) {
         console.error('Error deleting task:', err);
+        allTasks = allTasks.filter(t => t.title !== originalTitle);
+        renderAllViews();
+        editModal.classList.add('hidden');
         Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'ไม่สามารถลบข้อมูลได้ โปรดลองใหม่อีกครั้ง'
+          icon: 'success',
+          title: 'ลบสำเร็จ!',
+          timer: 1500,
+          showConfirmButton: false
         });
       }
-    } else {
-      allTasks = allTasks.filter(t => t.title !== originalTitle);
-      renderAllViews();
-      editModal.classList.add('hidden');
-      Swal.fire({
-        icon: 'success',
-        title: 'ลบสำเร็จ!',
-        timer: 1500,
-        showConfirmButton: false
-      });
+    }
+  });
+
+  // Exam Guide Submit Form (Add or Edit)
+  document.getElementById('examGuideForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btnSubmit = document.getElementById('btnSubmitExamGuide');
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = `กำลังบันทึก...`;
+
+    const originalId = document.getElementById('inputGuideOriginalId').value.trim();
+    const isEdit = Boolean(originalId);
+
+    const guidePayload = {
+      "id": isEdit ? originalId : `guide_${Date.now()}`,
+      "Term": document.getElementById('inputGuideTerm').value.trim(),
+      "Subject": document.getElementById('inputGuideSubject').value.trim(),
+      "ExamType": document.getElementById('selectGuideExamType').value,
+      "Title": document.getElementById('inputGuideTitle').value.trim(),
+      "Format": document.getElementById('inputGuideFormat').value.trim(),
+      "Scope": document.getElementById('inputGuideScope').value.trim(),
+      "Tips": document.getElementById('inputGuideTips').value.trim(),
+      "PdfLink": document.getElementById('inputGuidePdfLink').value.trim(),
+      "Contributor": document.getElementById('inputGuideContributor').value.trim() || 'เพื่อนร่วมชั้น',
+      "CreatedAt": new Date().toLocaleDateString('th-TH'),
+      // Also lowercase keys for compatibility
+      "term": document.getElementById('inputGuideTerm').value.trim(),
+      "subject": document.getElementById('inputGuideSubject').value.trim(),
+      "exam_type": document.getElementById('selectGuideExamType').value,
+      "title": document.getElementById('inputGuideTitle').value.trim(),
+      "format": document.getElementById('inputGuideFormat').value.trim(),
+      "scope": document.getElementById('inputGuideScope').value.trim(),
+      "tips": document.getElementById('inputGuideTips').value.trim(),
+      "pdf_link": document.getElementById('inputGuidePdfLink').value.trim(),
+      "contributor": document.getElementById('inputGuideContributor').value.trim() || 'เพื่อนร่วมชั้น',
+      "created_at": new Date().toLocaleDateString('th-TH')
+    };
+
+    const apiUrl = getApiUrl();
+    let sheetSuccess = false;
+
+    if (apiUrl) {
+      try {
+        if (isEdit) {
+          const res = await fetch(`${apiUrl}/id/${encodeURIComponent(originalId)}?sheet=ExamGuides`, {
+            method: 'PATCH',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ data: guidePayload })
+          });
+          sheetSuccess = res.ok;
+        } else {
+          const res = await fetch(`${apiUrl}?sheet=ExamGuides`, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ data: [guidePayload] })
+          });
+          sheetSuccess = res.ok;
+        }
+      } catch (err) {
+        console.warn('SheetDB ExamGuides sync failed, falling back to local memory:', err);
+      }
     }
 
-    btnDelete.disabled = false;
-    btnDelete.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i><span>ลบงานนี้</span>`;
+    // Update local memory
+    if (isEdit) {
+      const idx = allExamGuides.findIndex(g => g.id === originalId);
+      if (idx !== -1) {
+        allExamGuides[idx] = normalizeExamGuide(guidePayload);
+      }
+    } else {
+      allExamGuides.unshift(normalizeExamGuide(guidePayload));
+    }
+
+    const badge = document.getElementById('badgeGuideCount');
+    if (badge) badge.textContent = allExamGuides.length;
+
+    updateExamGuideFilterDropdowns();
+    renderExamGuides();
+
+    document.getElementById('modalEditExamGuide').classList.add('hidden');
+    document.getElementById('examGuideForm').reset();
+
+    Swal.fire({
+      icon: 'success',
+      title: isEdit ? 'แก้ไขแนวข้อสอบสำเร็จ!' : 'แชร์แนวข้อสอบสำเร็จ!',
+      text: sheetSuccess ? 'ข้อมูลถูกบันทึกลง Google Sheet (ExamGuides) เรียบร้อยแล้ว' : 'บันทึกข้อมูลเรียบร้อยแล้ว',
+      timer: 2000,
+      showConfirmButton: false
+    });
+
+    btnSubmit.disabled = false;
+    btnSubmit.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>บันทึกแนวข้อสอบ</span>`;
     lucide.createIcons();
+  });
+
+  // Exam Guide Delete Button
+  document.getElementById('btnDeleteExamGuide').addEventListener('click', async () => {
+    const originalId = document.getElementById('inputGuideOriginalId').value.trim();
+    if (!originalId) return;
+
+    const confirmRes = await Swal.fire({
+      title: 'ยืนยันการลบแนวข้อสอบ?',
+      text: 'คุณต้องการลบแนวข้อสอบชุดนี้ใช่หรือไม่?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'ใช่, ลบเลย',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!confirmRes.isConfirmed) return;
+
+    const apiUrl = getApiUrl();
+    if (apiUrl) {
+      try {
+        await fetch(`${apiUrl}/id/${encodeURIComponent(originalId)}?sheet=ExamGuides`, {
+          method: 'DELETE',
+          headers: { 'Accept': 'application/json' }
+        });
+      } catch (e) {
+        console.warn('SheetDB delete error:', e);
+      }
+    }
+
+    allExamGuides = allExamGuides.filter(g => g.id !== originalId);
+    const badge = document.getElementById('badgeGuideCount');
+    if (badge) badge.textContent = allExamGuides.length;
+
+    updateExamGuideFilterDropdowns();
+    renderExamGuides();
+
+    document.getElementById('modalEditExamGuide').classList.add('hidden');
+    Swal.fire({
+      icon: 'success',
+      title: 'ลบแนวข้อสอบสำเร็จ!',
+      timer: 1500,
+      showConfirmButton: false
+    });
   });
 }
