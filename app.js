@@ -912,6 +912,405 @@ function renderSidebarGuideList() {
   });
 }
 
+// Word Document State & Theme
+let currentWordTheme = 'white';
+let isWordSidebarVisible = true;
+
+// Apply Paper Theme to all Word pages
+function applyWordTheme(theme) {
+  currentWordTheme = theme || 'white';
+  const pages = document.querySelectorAll('.word-page');
+  pages.forEach(p => {
+    p.classList.remove('word-theme-white', 'word-theme-warm', 'word-theme-ruled', 'word-theme-dark');
+    p.classList.add(`word-theme-${currentWordTheme}`);
+  });
+  const themeSelect = document.getElementById('selectWordTheme');
+  if (themeSelect && themeSelect.value !== currentWordTheme) {
+    themeSelect.value = currentWordTheme;
+  }
+}
+
+// Toggle Distraction-free Sidebar
+function toggleWordSidebar() {
+  const sidebar = document.getElementById('wordSidebarAside');
+  const icon = document.getElementById('iconWordSidebar');
+  if (!sidebar) return;
+
+  isWordSidebarVisible = !isWordSidebarVisible;
+  if (isWordSidebarVisible) {
+    sidebar.classList.remove('hidden');
+    if (icon) icon.setAttribute('data-lucide', 'panel-left');
+  } else {
+    sidebar.classList.add('hidden');
+    if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
+  }
+  lucide.createIcons();
+}
+
+// Live Word Document Statistics (Page, Word, Character, Read Time)
+function updateWordStats() {
+  const container = document.getElementById('wordPagesContainer');
+  if (!container) return;
+  const pages = container.querySelectorAll('.word-page');
+  const pageBodies = container.querySelectorAll('.word-page-body');
+
+  const totalPages = pages.length;
+  let fullText = '';
+  pageBodies.forEach(b => {
+    fullText += ' ' + (b.innerText || '');
+  });
+
+  const trimmedText = fullText.trim();
+  // English words count
+  const englishWords = (trimmedText.match(/[a-zA-Z0-9_-]+/g) || []).length;
+  // Thai characters count (roughly 4.5 chars per Thai word)
+  const thaiChars = (trimmedText.match(/[\u0E00-\u0E7F]/g) || []).length;
+  const thaiEstimatedWords = Math.round(thaiChars / 4.5);
+  const totalWords = englishWords + thaiEstimatedWords;
+  const totalChars = trimmedText.replace(/\s+/g, '').length;
+
+  // Reading time (average 200 words per minute)
+  const readTimeMinutes = Math.max(1, Math.ceil(totalWords / 200));
+
+  const pageCountEl = document.getElementById('statusPageCount');
+  const wordCountEl = document.getElementById('statusWordCount');
+  const charCountEl = document.getElementById('statusCharCount');
+  const readTimeEl = document.getElementById('statusReadTime');
+
+  if (pageCountEl) pageCountEl.textContent = `${totalPages} หน้า`;
+  if (wordCountEl) wordCountEl.textContent = `${totalWords.toLocaleString()} คำ`;
+  if (charCountEl) charCountEl.textContent = `${totalChars.toLocaleString()} ตัวอักษร`;
+  if (readTimeEl) readTimeEl.textContent = `อ่าน ~${readTimeMinutes} นาที`;
+}
+
+// Duplicate Current Document
+async function duplicateCurrentDocument() {
+  if (!currentReadingGuide) return;
+
+  const newId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+  const duplicateTitle = `${currentReadingGuide.title || 'เอกสาร'} (สำเนา)`;
+
+  const clonedPages = currentReadingGuide.pages && currentReadingGuide.pages.length > 0
+    ? [...currentReadingGuide.pages]
+    : (currentReadingGuide.content_html ? currentReadingGuide.content_html.split('<!-- PAGE_BREAK -->') : [currentReadingGuide.scope || '']);
+
+  const duplicatedGuide = {
+    ...currentReadingGuide,
+    id: newId,
+    title: duplicateTitle,
+    Title: duplicateTitle,
+    pages: clonedPages,
+    content_html: clonedPages.join('<!-- PAGE_BREAK -->'),
+    Scope: clonedPages.join('<!-- PAGE_BREAK -->'),
+    scope: clonedPages.join('<!-- PAGE_BREAK -->'),
+    created_at: new Date().toLocaleDateString('th-TH'),
+    CreatedAt: new Date().toLocaleDateString('th-TH')
+  };
+
+  allExamGuides.unshift(duplicatedGuide);
+
+  // Background sync to SheetDB
+  const apiUrl = getApiUrl();
+  if (apiUrl) {
+    fetch(`${apiUrl}?sheet=ExamGuides`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ data: [duplicatedGuide] })
+    }).catch(err => console.warn('Sync duplicate error:', err));
+  }
+
+  const badge = document.getElementById('badgeGuideCount');
+  if (badge) badge.textContent = allExamGuides.length;
+
+  updateExamGuideFilterDropdowns();
+  renderSidebarGuideList();
+  renderExamGuides();
+  openReadGuideModal(duplicatedGuide);
+
+  Swal.fire({
+    icon: 'success',
+    title: 'ทำซ้ำเอกสารสำเร็จ!',
+    text: `สร้าง "${duplicateTitle}" เรียบร้อยแล้ว`,
+    timer: 1800,
+    showConfirmButton: false
+  });
+}
+
+// Download Document as Plain Text File
+function downloadDocumentText() {
+  if (!currentReadingGuide) return;
+  const pageBodies = document.querySelectorAll('.word-page-body');
+  const texts = [];
+  pageBodies.forEach((b, i) => {
+    texts.push(`=== หน้าที่ ${i + 1} ===\n\n${b.innerText.trim()}`);
+  });
+
+  const fullText = [
+    `เอกสาร: ${currentReadingGuide.title || 'ไม่มีชื่อ'}`,
+    `วิชา: ${currentReadingGuide.subject || '-'} | เทอม: ${currentReadingGuide.term || '-'}`,
+    `สร้างเมื่อ: ${currentReadingGuide.created_at || '-'}`,
+    `========================================\n`,
+    texts.join('\n\n----------------------------------------\n\n')
+  ].join('\n');
+
+  const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${(currentReadingGuide.title || 'document').replace(/[/\\?%*:|"<>]/g, '-')}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Create Document From Pre-made Academic Templates
+function createDocumentFromTemplate(templateType) {
+  const modalTemplatePicker = document.getElementById('modalTemplatePicker');
+  if (modalTemplatePicker) modalTemplatePicker.classList.add('hidden');
+
+  const newId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+  const defaultTerm = allTasks[0]?.term || '2.1/9/2569';
+  let title = 'เอกสารสรุปบทเรียน (หน้าใหม่)';
+  let subject = 'วิชาใหม่';
+  let examType = 'สรุปบทเรียน';
+  let pages = [];
+
+  if (templateType === 'cheat_sheet') {
+    title = 'สรุปแนวข้อสอบ Final & จุดเน้นสำคัญ';
+    examType = 'สอบปลายภาค (Final)';
+    pages = [
+      `
+      <div class="my-3 p-4 rounded-xl bg-amber-50/90 border-2 border-amber-300 text-slate-800 shadow-xs">
+        <div class="font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-1.5">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i>
+          <span>กติกาห้องสอบ & รูปแบบข้อสอบ (EXAM RULES)</span>
+        </div>
+        <p>• ปรนัย 40 ข้อ (40 คะแนน) • อัตนัย 2 ข้อ (20 คะแนน)<br>• อนุญาตเครื่องคิดเลข FX-991 • ห้ามนำกระดาษทดเข้า นั่งสอบตามเลขที่นั่ง</p>
+      </div>
+
+      <div class="my-4">
+        <h3 class="font-black text-slate-900 text-base uppercase mb-2 border-b-2 border-purple-200 pb-1 flex items-center gap-2">
+          <span>🎯 ขอบเขตเนื้อหาที่ออกสอบ (PART A - ทฤษฎี)</span>
+        </h3>
+        <ul class="list-disc pl-5 space-y-1.5 text-slate-700">
+          <li><strong>บทที่ 1-3:</strong> พื้นฐานสถาปัตยกรรม & คอนเซ็ปต์สำคัญ (เน้นนิยามและข้อแตกต่าง)</li>
+          <li><strong>บทที่ 4-6:</strong> กระบวนการทำงาน & วงจรการพัฒนา (Sprint, Lifecycle, CI/CD)</li>
+        </ul>
+      </div>
+
+      <div class="my-4 p-4 rounded-xl bg-yellow-100/90 border border-yellow-300 text-amber-950 shadow-xs">
+        <div class="font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-1.5">
+          <i data-lucide="sparkles" class="w-4 h-4 text-rose-500 fill-rose-500"></i>
+          <span>จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ (HIGH PRIORITY)</span>
+        </div>
+        <p>🔥 <strong>ข้อเขียนเน้นออก:</strong> ให้เปรียบเทียบข้อดี-ข้อเสีย พร้อมยกตัวอย่างสถานการณ์จริง<br>🔥 <strong>สูตรคำนวณ:</strong> ท่องสูตรและฝึกกดเครื่องคิดเลขให้คล่อง ได้คะแนนแน่นอน 15 คะแนน!</p>
+      </div>
+      `
+    ];
+  } else if (templateType === 'table_matrix') {
+    title = 'ตารางเปรียบเทียบ & สรุปสาระสำคัญ';
+    examType = 'สรุปเนื้อหา';
+    pages = [
+      `
+      <p class="text-slate-600 mb-3">ตารางสรุปเปรียบเทียบหัวข้อสำคัญ เพื่อให้เห็นความแตกต่างและจุดเด่นจุดด้อยชัดเจน:</p>
+      <table class="w-full my-4 border-collapse border border-slate-300 text-sm">
+        <thead>
+          <tr class="bg-indigo-50 text-indigo-950 font-bold">
+            <th class="border border-slate-300 p-2.5 text-left">หัวข้อ / ประเด็น</th>
+            <th class="border border-slate-300 p-2.5 text-left">คุณสมบัติ / คำอธิบาย</th>
+            <th class="border border-slate-300 p-2.5 text-left">ข้อดี (Pros)</th>
+            <th class="border border-slate-300 p-2.5 text-left">จุดควรจำ / เก็งสอบ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border border-slate-300 p-2.5 font-semibold">เทคโนโลยี / โมเดล A</td>
+            <td class="border border-slate-300 p-2.5">คำอธิบายหลักการทำงานเบื้องต้น...</td>
+            <td class="border border-slate-300 p-2.5 text-emerald-700">เร็ว, ใช้ทรัพยากรน้อย</td>
+            <td class="border border-slate-300 p-2.5 text-rose-600 font-medium">ออกสอบนิยาม 2 ข้อ</td>
+          </tr>
+          <tr>
+            <td class="border border-slate-300 p-2.5 font-semibold">เทคโนโลยี / โมเดล B</td>
+            <td class="border border-slate-300 p-2.5">คำอธิบายหลักการทำงานเบื้องต้น...</td>
+            <td class="border border-slate-300 p-2.5 text-emerald-700">ปลอดภัยสูง, ขยายระบบง่าย</td>
+            <td class="border border-slate-300 p-2.5 text-rose-600 font-medium">เปรียบเทียบในข้อเขียน</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="my-4 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+        💡 <em>สรุปภาพรวม: โมเดล A เหมาะกับงานขนาดเล็ก ส่วนโมเดล B เหมาะกับระดับ Enterprise</em>
+      </div>
+      `
+    ];
+  } else if (templateType === 'study_plan') {
+    title = 'แผนอ่านหนังสือ & เช็คลิสต์ 7 วันก่อนสอบ';
+    examType = 'แผนเตรียมสอบ';
+    pages = [
+      `
+      <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl mb-4 text-emerald-950 flex items-center justify-between">
+        <span class="font-bold text-xs uppercase">🎯 แผนอ่านหนังสือ 7 วันแบบเข้มข้น (Daily Sprint)</span>
+        <span class="text-xs font-semibold text-emerald-700">เป้าหมาย: เกรด A</span>
+      </div>
+
+      <table class="w-full my-3 border-collapse border border-slate-300 text-sm">
+        <thead>
+          <tr class="bg-slate-100 font-bold">
+            <th class="border border-slate-300 p-2 text-center w-16">วัน</th>
+            <th class="border border-slate-300 p-2 text-left">หัวข้อบทเรียน</th>
+            <th class="border border-slate-300 p-2 text-left">เป้าหมายงาน</th>
+            <th class="border border-slate-300 p-2 text-center w-24">เช็คเสร็จ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border border-slate-300 p-2 text-center font-bold text-indigo-600">Day 1</td>
+            <td class="border border-slate-300 p-2">ทบทวนสไลด์ บทที่ 1 - 3</td>
+            <td class="border border-slate-300 p-2">จดสรุปคีย์เวิร์ด + ทำความเข้าใจคอนเซ็ปต์</td>
+            <td class="border border-slate-300 p-2 text-center"><input type="checkbox" class="w-4 h-4 text-purple-600"></td>
+          </tr>
+          <tr>
+            <td class="border border-slate-300 p-2 text-center font-bold text-indigo-600">Day 2</td>
+            <td class="border border-slate-300 p-2">ทบทวนสไลด์ บทที่ 4 - 6</td>
+            <td class="border border-slate-300 p-2">สรุปผัง Diagram & ขั้นตอนการทำงาน</td>
+            <td class="border border-slate-300 p-2 text-center"><input type="checkbox" class="w-4 h-4 text-purple-600"></td>
+          </tr>
+          <tr>
+            <td class="border border-slate-300 p-2 text-center font-bold text-indigo-600">Day 3</td>
+            <td class="border border-slate-300 p-2">ฝึกทำโจทย์ & ข้อสอบเก่าปีก่อน</td>
+            <td class="border border-slate-300 p-2">จับเวลาทำข้อสอบจริง 60 นาที</td>
+            <td class="border border-slate-300 p-2 text-center"><input type="checkbox" class="w-4 h-4 text-purple-600"></td>
+          </tr>
+          <tr>
+            <td class="border border-slate-300 p-2 text-center font-bold text-indigo-600">Day 4</td>
+            <td class="border border-slate-300 p-2">ทวนจุดที่ทำผิด & เก็งข้อเขียน</td>
+            <td class="border border-slate-300 p-2">เขียนคำตอบข้อเขียนแบบบรรยายซ้ำ 3 รอบ</td>
+            <td class="border border-slate-300 p-2 text-center"><input type="checkbox" class="w-4 h-4 text-purple-600"></td>
+          </tr>
+          <tr>
+            <td class="border border-slate-300 p-2 text-center font-bold text-indigo-600">Day 5-7</td>
+            <td class="border border-slate-300 p-2">ทบทวน Cheat Sheet หน้าเดียว</td>
+            <td class="border border-slate-300 p-2">พักผ่อนให้เพียงพอ พร้อมลุยห้องสอบ!</td>
+            <td class="border border-slate-300 p-2 text-center"><input type="checkbox" class="w-4 h-4 text-purple-600"></td>
+          </tr>
+        </tbody>
+      </table>
+      `
+    ];
+  } else if (templateType === 'cornell') {
+    title = 'บันทึกสรุปแบบ Cornell Notes';
+    examType = 'Cornell Notes';
+    pages = [
+      `
+      <div class="border border-slate-300 rounded-xl overflow-hidden my-3">
+        <!-- 2 Column Cornell Grid -->
+        <div class="grid grid-cols-12 min-h-[500px]">
+          <!-- Left: Cues / Questions Column (30%) -->
+          <div class="col-span-4 bg-slate-50 p-4 border-r border-slate-300 space-y-4">
+            <div class="text-xs font-bold uppercase text-purple-700 tracking-wider border-b border-purple-200 pb-1">
+              🔑 คีย์เวิร์ด / คำถาม (CUES)
+            </div>
+            <div>
+              <p class="font-bold text-slate-800 text-sm">• คำถามที่ 1:</p>
+              <p class="text-xs text-slate-500">เหตุใดระบบถึงต้องใช้สถาปัตยกรรมนี้?</p>
+            </div>
+            <div>
+              <p class="font-bold text-slate-800 text-sm">• ศัพท์เทคนิคสำคัญ:</p>
+              <p class="text-xs text-slate-500">Idempotency, ACID, Scalability</p>
+            </div>
+            <div>
+              <p class="font-bold text-slate-800 text-sm">• แนวโน้มข้อสอบ:</p>
+              <p class="text-xs text-slate-500">มักถามความแตกต่างของ 2 ฝั่ง</p>
+            </div>
+          </div>
+
+          <!-- Right: Note-taking Area (70%) -->
+          <div class="col-span-8 p-5 space-y-4 bg-white">
+            <div class="text-xs font-bold uppercase text-slate-500 tracking-wider border-b border-slate-200 pb-1">
+              📝 เนื้อหาจดสรุป (NOTES)
+            </div>
+            <p class="text-slate-800 leading-relaxed text-sm">
+              บันทึกเนื้อหาจากการฟังบรรยายในห้องหรือจากชีทเรียน โดยเน้นเขียนด้วยสำนวนตนเองเพื่อให้จำได้แม่นยำขึ้น
+            </p>
+            <ul class="list-disc pl-5 space-y-2 text-slate-700 text-sm">
+              <li>หลักการที่ 1: การแบ่งภาระงานแบบกระจายศูนย์ (Distributed) ช่วยให้ระบบไม่ล่มพร้อมกัน</li>
+              <li>หลักการที่ 2: ใช้ Cache เพื่อลดโหลดบน Database ทำให้ตอบสนองได้เร็วขึ้นในระดับมิลลิวินาที</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Bottom: Summary Area -->
+        <div class="p-4 bg-purple-50/70 border-t-2 border-purple-300">
+          <div class="text-xs font-bold uppercase text-purple-900 tracking-wider mb-1 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-600"></i>
+            <span>สรุปสาระสำคัญใน 2-3 ประโยค (SUMMARY)</span>
+          </div>
+          <p class="text-sm text-slate-800 leading-relaxed">
+            ภาพรวมเน้นการออกแบบระบบที่รองรับการขยายตัว (Scalable) โดยหัวใจหลักคือการแยกส่วนประกอบและมีจุดสำรองข้อมูลเสมอ
+          </p>
+        </div>
+      </div>
+      `
+    ];
+  } else {
+    // Blank template
+    pages = ['<p>เริ่มพิมพ์เนื้อหา สรุปบทเรียน หรือบันทึกข้อสอบได้ที่นี่...</p>'];
+  }
+
+  const initialBody = pages.join('<!-- PAGE_BREAK -->');
+  const newGuide = {
+    id: newId,
+    Term: defaultTerm,
+    Subject: subject,
+    ExamType: examType,
+    Title: title,
+    Format: '',
+    Scope: initialBody,
+    Tips: '',
+    PdfLink: '',
+    Contributor: 'ฉันเอง',
+    CreatedAt: new Date().toLocaleDateString('th-TH'),
+    term: defaultTerm,
+    subject: subject,
+    exam_type: examType,
+    title: title,
+    format: '',
+    scope: initialBody,
+    tips: '',
+    pdf_link: '',
+    contributor: 'ฉันเอง',
+    created_at: new Date().toLocaleDateString('th-TH'),
+    content_html: initialBody,
+    pages: pages
+  };
+
+  allExamGuides.unshift(newGuide);
+
+  // Background sync
+  const apiUrl = getApiUrl();
+  if (apiUrl) {
+    fetch(`${apiUrl}?sheet=ExamGuides`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ data: [newGuide] })
+    }).catch(err => console.warn('Background sync failed:', err));
+  }
+
+  const badge = document.getElementById('badgeGuideCount');
+  if (badge) badge.textContent = allExamGuides.length;
+
+  updateExamGuideFilterDropdowns();
+  renderSidebarGuideList();
+  renderExamGuides();
+  openReadGuideModal(newGuide);
+}
+
 // Word Document Auto-Save Timer
 let wordAutoSaveTimer = null;
 function triggerWordAutoSave() {
@@ -995,7 +1394,7 @@ function createNewBlankWordDocument() {
 // Build a Word Page Element (Multi-Page A4)
 function createWordPageElement(pageIndex, totalPages, initialContent = '', isFirstPage = false, guide = null) {
   const pageDiv = document.createElement('div');
-  pageDiv.className = `word-page bg-white shadow-2xl border border-slate-300 ${isWordPageWide ? 'max-w-7xl' : 'max-w-5xl'} w-full min-h-[1100px] p-8 sm:p-14 text-slate-900 rounded-xs relative transition-all flex flex-col mb-8`;
+  pageDiv.className = `word-page word-theme-${currentWordTheme} bg-white shadow-2xl border border-slate-300 ${isWordPageWide ? 'max-w-7xl' : 'max-w-5xl'} w-full min-h-[1100px] p-8 sm:p-14 text-slate-900 rounded-xs relative transition-all flex flex-col mb-8`;
   pageDiv.dataset.pageIndex = pageIndex;
 
   const subject = guide?.subject || 'วิชาใหม่';
@@ -1066,10 +1465,11 @@ function createWordPageElement(pageIndex, totalPages, initialContent = '', isFir
     if (currentReadingGuide) currentReadingGuide.exam_type = e.target.innerText.trim();
   });
 
-  // Auto-save on typing
+  // Auto-save & stats on typing
   pageDiv.querySelectorAll('[contenteditable="true"]').forEach(el => {
     el.addEventListener('input', () => {
       triggerWordAutoSave();
+      updateWordStats();
     });
   });
 
@@ -1093,6 +1493,8 @@ function updateWordPageIndicators() {
 
   const countStatus = document.getElementById('wordPageCountStatus');
   if (countStatus) countStatus.textContent = `${total} หน้ากระดาษ`;
+
+  updateWordStats();
 }
 
 // Add a Blank Page to the Document
@@ -1351,6 +1753,8 @@ function openReadGuideModal(guide) {
     });
 
     updateWordPageIndicators();
+    applyWordTheme(currentWordTheme);
+    updateWordStats();
   }
 
   // 3. In-App Embedded PDF Viewer Setup
@@ -1713,6 +2117,26 @@ function initEventListeners() {
   });
 
   // Word Document Ribbon Formatting Tools (Rich Text)
+  // Undo / Redo
+  document.getElementById('btnWordUndo')?.addEventListener('click', () => {
+    document.execCommand('undo', false, null);
+    updateWordStats();
+    triggerWordAutoSave();
+  });
+  document.getElementById('btnWordRedo')?.addEventListener('click', () => {
+    document.execCommand('redo', false, null);
+    updateWordStats();
+    triggerWordAutoSave();
+  });
+
+  // Font Size selector
+  document.getElementById('selectWordFontSize')?.addEventListener('change', (e) => {
+    const size = e.target.value;
+    document.execCommand('fontSize', false, size);
+    triggerWordAutoSave();
+  });
+
+  // Style Headings
   document.getElementById('btnWordHeading1')?.addEventListener('click', () => {
     document.execCommand('formatBlock', false, '<h1>');
     triggerWordAutoSave();
@@ -1739,6 +2163,20 @@ function initEventListeners() {
   });
   document.getElementById('btnWordStrike')?.addEventListener('click', () => {
     document.execCommand('strikeThrough', false, null);
+    triggerWordAutoSave();
+  });
+
+  // Text Alignment
+  document.getElementById('btnWordAlignLeft')?.addEventListener('click', () => {
+    document.execCommand('justifyLeft', false, null);
+    triggerWordAutoSave();
+  });
+  document.getElementById('btnWordAlignCenter')?.addEventListener('click', () => {
+    document.execCommand('justifyCenter', false, null);
+    triggerWordAutoSave();
+  });
+  document.getElementById('btnWordAlignRight')?.addEventListener('click', () => {
+    document.execCommand('justifyRight', false, null);
     triggerWordAutoSave();
   });
 
@@ -1772,11 +2210,43 @@ function initEventListeners() {
     triggerWordAutoSave();
   });
 
+  // Paper Theme Selector
+  document.getElementById('selectWordTheme')?.addEventListener('change', (e) => {
+    applyWordTheme(e.target.value);
+  });
+
+  // Sidebar Toggle (Distraction Free View)
+  document.getElementById('btnToggleWordSidebar')?.addEventListener('click', toggleWordSidebar);
+
+  // Template Library Modal open/close & selection
+  const modalTemplatePicker = document.getElementById('modalTemplatePicker');
+  const openTemplateModal = () => {
+    modalTemplatePicker?.classList.remove('hidden');
+    lucide.createIcons();
+  };
+  const closeTemplateModal = () => {
+    modalTemplatePicker?.classList.add('hidden');
+  };
+  document.getElementById('btnOpenTemplatesModal')?.addEventListener('click', openTemplateModal);
+  document.getElementById('btnSidebarOpenTemplates')?.addEventListener('click', openTemplateModal);
+  document.getElementById('btnCloseTemplatePicker')?.addEventListener('click', closeTemplateModal);
+
+  document.querySelectorAll('.btn-select-template').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const template = btn.getAttribute('data-template');
+      createDocumentFromTemplate(template);
+    });
+  });
+
   // Document management actions
   document.getElementById('btnSidebarNewDoc')?.addEventListener('click', createNewBlankWordDocument);
   document.getElementById('btnNavbarCreateWordDoc')?.addEventListener('click', createNewBlankWordDocument);
   document.getElementById('btnCreateBlankWordDocInVault')?.addEventListener('click', createNewBlankWordDocument);
   document.getElementById('btnSidebarDeleteCurrentDoc')?.addEventListener('click', deleteCurrentDocument);
+
+  // Status Bar Actions
+  document.getElementById('btnDuplicateDoc')?.addEventListener('click', duplicateCurrentDocument);
+  document.getElementById('btnDownloadDocText')?.addEventListener('click', downloadDocumentText);
 
   // Sync title bar with document
   document.getElementById('topWordDocTitleInput')?.addEventListener('input', (e) => {
@@ -1790,14 +2260,17 @@ function initEventListeners() {
   document.getElementById('btnSaveWordDoc')?.addEventListener('click', () => saveWordDocument(true));
   document.getElementById('btnTogglePageWidth')?.addEventListener('click', togglePageWidth);
 
-  // Shortcut Ctrl+S / Cmd+S to save Word document
+  // Shortcut Ctrl+S / Cmd+S to save Word document, Ctrl+\ to toggle sidebar
   window.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('modalReadExamGuide');
+    if (!modal || modal.classList.contains('hidden')) return;
+
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      const modal = document.getElementById('modalReadExamGuide');
-      if (modal && !modal.classList.contains('hidden')) {
-        e.preventDefault();
-        saveWordDocument();
-      }
+      e.preventDefault();
+      saveWordDocument();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+      e.preventDefault();
+      toggleWordSidebar();
     }
   });
 
