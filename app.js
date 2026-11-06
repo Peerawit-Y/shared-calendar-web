@@ -279,6 +279,10 @@ function normalizeExamGuide(raw) {
     return '';
   };
 
+  const contentHtml = getProp(['content_html', 'contentHtml', 'html', 'HTML', 'body', 'Body']);
+  const rawScope = getProp(['scope', 'Scope', 'ขอบเขต', 'เนื้อหา']);
+  const rawPages = raw.pages && Array.isArray(raw.pages) ? raw.pages : null;
+
   return {
     id: getProp(['id', 'ID']) || `guide_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
     term: getProp(['term', 'Term']),
@@ -286,11 +290,13 @@ function normalizeExamGuide(raw) {
     exam_type: getProp(['exam_type', 'ExamType', 'Exam Type', 'type', 'Type']) || 'สอบปลายภาค (Final)',
     title: getProp(['title', 'Title', 'หัวข้อ', 'ชื่องาน']),
     format: getProp(['format', 'Format', 'รูปแบบ', 'กติกา']),
-    scope: getProp(['scope', 'Scope', 'ขอบเขต', 'เนื้อหา']),
+    scope: rawScope,
     tips: getProp(['tips', 'Tips', 'จุดเน้น', 'ข้อควรระวัง']),
     pdf_link: getProp(['pdf_link', 'PdfLink', 'PDF', 'Link', 'link', 'DriveUrl']),
     contributor: getProp(['contributor', 'Contributor', 'ผู้แชร์']) || 'เพื่อนร่วมชั้น',
-    created_at: getProp(['created_at', 'CreatedAt', 'Date', 'date']) || new Date().toLocaleDateString('th-TH')
+    created_at: getProp(['created_at', 'CreatedAt', 'Date', 'date']) || new Date().toLocaleDateString('th-TH'),
+    content_html: contentHtml || (rawScope && (rawScope.includes('<') || rawScope.includes('<!-- PAGE_BREAK -->')) ? rawScope : ''),
+    pages: rawPages
   };
 }
 
@@ -796,7 +802,7 @@ function renderExamGuides() {
         <!-- Scope Snippet -->
         ${guide.scope ? `
           <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-            <span class="font-semibold text-slate-800">🎯 ขอบเขต:</span> ${guide.scope.replace(/\n/g, ' ')}
+            <span class="font-semibold text-slate-800">🎯 ขอบเขต:</span> ${guide.scope.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}
           </p>
         ` : ''}
       </div>
@@ -925,20 +931,32 @@ function triggerWordAutoSave() {
 function createNewBlankWordDocument() {
   const newId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
   const defaultTerm = allTasks[0]?.term || '2.1/9/2569';
+  const initialBody = '<p>เริ่มพิมพ์เนื้อหา สรุปบทเรียน หรือโน้ตข้อสอบได้ที่นี่...</p>';
+  
   const newGuide = {
     id: newId,
+    Term: defaultTerm,
+    Subject: 'วิชาใหม่',
+    ExamType: 'สรุปบทเรียน & แนวข้อสอบ',
+    Title: 'เอกสารสรุปบทเรียน (หน้าใหม่)',
+    Format: '',
+    Scope: initialBody,
+    Tips: '',
+    PdfLink: '',
+    Contributor: 'ฉันเอง',
+    CreatedAt: new Date().toLocaleDateString('th-TH'),
     term: defaultTerm,
     subject: 'วิชาใหม่',
     exam_type: 'สรุปบทเรียน & แนวข้อสอบ',
     title: 'เอกสารสรุปบทเรียน (หน้าใหม่)',
-    content_html: '<p>เริ่มพิมพ์เนื้อหา สรุปบทเรียน หรือโน้ตข้อสอบได้ที่นี่...</p>',
-    pages: ['<p>เริ่มพิมพ์เนื้อหา สรุปบทเรียน หรือโน้ตข้อสอบได้ที่นี่...</p>'],
     format: '',
-    scope: 'เริ่มพิมพ์เนื้อหา...',
+    scope: initialBody,
     tips: '',
     pdf_link: '',
     contributor: 'ฉันเอง',
-    created_at: new Date().toLocaleDateString('th-TH')
+    created_at: new Date().toLocaleDateString('th-TH'),
+    content_html: initialBody,
+    pages: [initialBody]
   };
 
   allExamGuides.unshift(newGuide);
@@ -1285,7 +1303,11 @@ function openReadGuideModal(guide) {
     if (guide.pages && Array.isArray(guide.pages) && guide.pages.length > 0) {
       pagesData = guide.pages;
     } else if (guide.content_html && guide.content_html.trim() !== '') {
-      pagesData = [guide.content_html];
+      pagesData = guide.content_html.split('<!-- PAGE_BREAK -->');
+    } else if (guide.scope && guide.scope.includes('<!-- PAGE_BREAK -->')) {
+      pagesData = guide.scope.split('<!-- PAGE_BREAK -->');
+    } else if (guide.scope && (guide.scope.includes('<p>') || guide.scope.includes('<div') || guide.scope.includes('<table'))) {
+      pagesData = [guide.scope];
     } else {
       // Build standard initial structured page from format, scope, tips
       let initialHtml = '';
@@ -1384,20 +1406,41 @@ async function saveWordDocument(showFeedback = true) {
   currentReadingGuide.title = newTitle;
   currentReadingGuide.pages = pages;
   currentReadingGuide.content_html = contentHtml;
-  currentReadingGuide.scope = textSummary || currentReadingGuide.scope;
+  currentReadingGuide.scope = contentHtml || textSummary || currentReadingGuide.scope;
+
+  const fullContent = contentHtml || textSummary || '';
 
   const guidePayload = {
-    ...currentReadingGuide,
+    "id": currentReadingGuide.id,
+    "Term": currentReadingGuide.term || allTasks[0]?.term || '2.1/9/2569',
+    "Subject": currentReadingGuide.subject || 'วิชาใหม่',
+    "ExamType": currentReadingGuide.exam_type || 'สรุปบทเรียน',
     "Title": newTitle,
-    "Scope": textSummary.substring(0, 500),
+    "Format": currentReadingGuide.format || '',
+    "Scope": fullContent,
+    "Tips": currentReadingGuide.tips || '',
+    "PdfLink": currentReadingGuide.pdf_link || '',
+    "Contributor": currentReadingGuide.contributor || 'เพื่อนร่วมชั้น',
+    "CreatedAt": currentReadingGuide.created_at || new Date().toLocaleDateString('th-TH'),
+    // Lowercase copies for broad compatibility
+    "term": currentReadingGuide.term || allTasks[0]?.term || '2.1/9/2569',
+    "subject": currentReadingGuide.subject || 'วิชาใหม่',
+    "exam_type": currentReadingGuide.exam_type || 'สรุปบทเรียน',
     "title": newTitle,
-    "scope": textSummary.substring(0, 500)
+    "format": currentReadingGuide.format || '',
+    "scope": fullContent,
+    "tips": currentReadingGuide.tips || '',
+    "pdf_link": currentReadingGuide.pdf_link || '',
+    "contributor": currentReadingGuide.contributor || 'เพื่อนร่วมชั้น',
+    "created_at": currentReadingGuide.created_at || new Date().toLocaleDateString('th-TH'),
+    "content_html": contentHtml,
+    "pages": pages
   };
 
   const apiUrl = getApiUrl();
   if (apiUrl && currentReadingGuide.id) {
     try {
-      await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
+      let res = await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
         method: 'PATCH',
         headers: {
           'Accept': 'application/json',
@@ -1405,6 +1448,18 @@ async function saveWordDocument(showFeedback = true) {
         },
         body: JSON.stringify({ data: guidePayload })
       });
+
+      // If row not found in Google Sheets, insert as new row via POST
+      if (res.status === 404) {
+        await fetch(`${apiUrl}?sheet=ExamGuides`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ data: [guidePayload] })
+        });
+      }
     } catch (err) {
       console.warn('Word document save to sheet failed, updated locally:', err);
     }
