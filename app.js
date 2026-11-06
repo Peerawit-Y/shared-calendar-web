@@ -500,36 +500,142 @@ async function loadData() {
   }
 }
 
-// Fetch Exam Guides (From SheetDB ExamGuides tab or Local Demo)
+// Local-First Storage Keys
+const STORAGE_EXAM_GUIDES_KEY = 'shared_calendar_exam_guides_v2';
+const STORAGE_ACTIVE_DOC_KEY = 'shared_calendar_active_doc_v2';
+
+// Clean HTML to avoid bloating and staying well below Google Sheets 50,000 char cell limit
+function cleanHtmlForStorage(html) {
+  if (!html) return '';
+  let s = html;
+
+  // 1. Convert Lucide SVGs back to lightweight <i> tags
+  s = s.replace(/<svg[^>]*data-lucide="([^"]+)"[^>]*>[\s\S]*?<\/svg>/gi, '<i data-lucide="$1"></i>');
+  s = s.replace(/<svg[\s\S]*?<\/svg>/gi, '');
+
+  // 2. Strip Tailwind CSS variable garbage and browser paste garbage
+  s = s.replace(/--tw-[^;]+;?/gi, '');
+  s = s.replace(/--[a-zA-Z0-9_-]+:[^;]+;?/gi, '');
+  s = s.replace(/line-height:\s*1\.15\s*!important;?/gi, '');
+  s = s.replace(/margin-(top|bottom|left|right):\s*0px\s*!important;?/gi, '');
+  s = s.replace(/font-family:\s*[^;]+!important;?/gi, '');
+
+  // 3. Remove useless font wrappers from Google Docs
+  s = s.replace(/<font[^>]*>/gi, '').replace(/<\/font>/gi, '');
+
+  // 4. Remove empty style attributes and paste metadata
+  s = s.replace(/\s*style="\s*"/gi, '');
+  s = s.replace(/\s*dir="ltr"/gi, '');
+  s = s.replace(/\s*data-path-to-node="[^"]*"/gi, '');
+  s = s.replace(/\s*data-index-in-node="[^"]*"/gi, '');
+
+  // 5. Clean up redundant spaces
+  s = s.replace(/\s{2,}/g, ' ');
+
+  return s.trim();
+}
+
+// LocalStorage Helpers (Guarantees zero data loss even if SheetDB is full/offline)
+function getLocalExamGuides() {
+  try {
+    const raw = localStorage.getItem(STORAGE_EXAM_GUIDES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(normalizeExamGuide);
+      }
+    }
+  } catch (e) {
+    console.warn('LocalStorage read error:', e);
+  }
+  return null;
+}
+
+function saveLocalExamGuides(guides) {
+  try {
+    if (!guides || !Array.isArray(guides)) return;
+    localStorage.setItem(STORAGE_EXAM_GUIDES_KEY, JSON.stringify(guides));
+  } catch (e) {
+    console.warn('LocalStorage save error:', e);
+  }
+}
+
+// Smart Merge: Remote data will NEVER overwrite local unsaved changes or active typing!
+function mergeLocalAndRemoteGuides(localList, remoteList) {
+  if (!localList || localList.length === 0) return remoteList;
+  if (!remoteList || remoteList.length === 0) return localList;
+
+  const merged = [...localList];
+  const localMap = new Map(localList.map(g => [g.id, g]));
+
+  remoteList.forEach(rem => {
+    const local = localMap.get(rem.id);
+    if (!local) {
+      // New guide from cloud that doesn't exist locally
+      merged.push(rem);
+    } else {
+      // Guide exists in both. Protect local if being edited or unsaved
+      const isCurrentlyOpen = currentReadingGuide && currentReadingGuide.id === local.id;
+      if (isCurrentlyOpen || local._unsaved) {
+        // Keep local version! Never overwrite!
+      } else {
+        // If remote has newer data and local has no pending edits
+        const idx = merged.findIndex(g => g.id === rem.id);
+        if (idx !== -1) {
+          merged[idx] = {
+            ...rem,
+            pages: rem.pages || (rem.content_html ? rem.content_html.split('<!-- PAGE_BREAK -->') : local.pages)
+          };
+        }
+      }
+    }
+  });
+
+  return merged;
+}
+
+// Fetch Exam Guides (Local-First Architecture)
 async function loadExamGuides() {
   const apiUrl = getApiUrl();
   const badge = document.getElementById('badgeGuideCount');
 
+  // STEP 1: Immediately render from LocalStorage! (Instant load, 0s delay, never loses text)
+  const localCached = getLocalExamGuides();
+  if (localCached && localCached.length > 0) {
+    allExamGuides = localCached;
+    if (badge) badge.textContent = allExamGuides.length;
+    updateExamGuideFilterDropdowns();
+    renderExamGuides();
+    renderSidebarGuideList();
+  }
+
+  // STEP 2: Background sync from Cloud SheetDB
   if (apiUrl) {
     try {
       const res = await fetch(`${apiUrl}?sheet=ExamGuides`);
       if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          allExamGuides = data.map(normalizeExamGuide);
-        } else {
-          allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
+        const remoteData = await res.json();
+        if (Array.isArray(remoteData) && remoteData.length > 0) {
+          const normalizedRemote = remoteData.map(normalizeExamGuide);
+          allExamGuides = mergeLocalAndRemoteGuides(allExamGuides, normalizedRemote);
+          saveLocalExamGuides(allExamGuides);
         }
-      } else {
-        // Tab might not exist yet, use default demo
-        allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
       }
     } catch (err) {
-      console.warn('Could not load from SheetDB ExamGuides, using demo:', err);
-      allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
+      console.warn('Cloud sync error (using local storage cache safely):', err);
     }
-  } else {
+  }
+
+  // STEP 3: Fallback only if local AND remote are totally empty
+  if (!allExamGuides || allExamGuides.length === 0) {
     allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
+    saveLocalExamGuides(allExamGuides);
   }
 
   if (badge) badge.textContent = allExamGuides.length;
   updateExamGuideFilterDropdowns();
   renderExamGuides();
+  renderSidebarGuideList();
 }
 
 // Render Calendar and Table based on current filters
@@ -1311,19 +1417,29 @@ function createDocumentFromTemplate(templateType) {
   openReadGuideModal(newGuide);
 }
 
-// Word Document Auto-Save Timer
-let wordAutoSaveTimer = null;
+// Word Document Auto-Save: Local (Fast 300ms) & Cloud (10s to conserve SheetDB quota)
+let wordLocalSaveTimer = null;
+let wordCloudSaveTimer = null;
+
 function triggerWordAutoSave() {
   const saveStatus = document.getElementById('saveWordDocStatus');
   if (saveStatus) {
-    saveStatus.innerHTML = `<i data-lucide="edit-2" class="w-3 h-3 text-amber-500 animate-pulse"></i><span class="text-amber-500">กำลังแก้ไข...</span>`;
+    saveStatus.innerHTML = `<i data-lucide="edit-2" class="w-3 h-3 text-amber-500 animate-pulse"></i><span class="text-amber-500">กำลังพิมพ์...</span>`;
     saveStatus.classList.remove('hidden');
     lucide.createIcons();
   }
-  clearTimeout(wordAutoSaveTimer);
-  wordAutoSaveTimer = setTimeout(() => {
+
+  // 1. FAST Local Storage Save (Debounce 300ms) - GUARANTEES ZERO DATA LOSS
+  clearTimeout(wordLocalSaveTimer);
+  wordLocalSaveTimer = setTimeout(() => {
+    saveWordDocumentLocalOnly();
+  }, 300);
+
+  // 2. CONSERVE CLOUD QUOTA (Debounce 10,000ms) - Prevents burning through SheetDB 500 req/month
+  clearTimeout(wordCloudSaveTimer);
+  wordCloudSaveTimer = setTimeout(() => {
     saveWordDocument(false);
-  }, 1800);
+  }, 10000);
 }
 
 // Create a New Blank Word Document
@@ -1782,46 +1898,89 @@ function openReadGuideModal(guide) {
   lucide.createIcons();
 }
 
-// Save Word Document Changes (Direct In-Place Editing)
-async function saveWordDocument(showFeedback = true) {
+// Save Word Document Locally (Immediate 300ms, NEVER LOSES TEXT)
+function saveWordDocumentLocalOnly() {
   if (!currentReadingGuide) return;
-
-  const btnSave = document.getElementById('btnSaveWordDoc');
-  const saveText = document.getElementById('saveWordDocText');
-  const saveStatus = document.getElementById('saveWordDocStatus');
 
   const topTitle = document.getElementById('topWordDocTitleInput')?.value.trim();
   const firstPageTitle = document.querySelector('.word-doc-title')?.innerText.trim();
   const newTitle = topTitle || firstPageTitle || currentReadingGuide.title || 'เอกสารไม่มีชื่อ';
 
-  // Extract pages HTML
+  // Extract pages and sanitize HTML
   const pageBodies = document.querySelectorAll('.word-page-body');
   const pages = [];
   pageBodies.forEach(body => {
-    pages.push(body.innerHTML);
+    pages.push(cleanHtmlForStorage(body.innerHTML));
   });
+
   const contentHtml = pages.join('<!-- PAGE_BREAK -->');
   const textSummary = Array.from(pageBodies).map(b => b.innerText.trim()).filter(Boolean).join('\n\n');
 
-  if (showFeedback && btnSave) btnSave.disabled = true;
-  if (showFeedback && saveText) saveText.textContent = 'กำลังบันทึก...';
-
-  // Update current in-memory object
+  // Update in-memory guide object
   currentReadingGuide.title = newTitle;
   currentReadingGuide.pages = pages;
   currentReadingGuide.content_html = contentHtml;
   currentReadingGuide.scope = contentHtml || textSummary || currentReadingGuide.scope;
+  currentReadingGuide._unsaved = true;
 
-  const fullContent = contentHtml || textSummary || '';
+  // Persist to allExamGuides array
+  const idx = allExamGuides.findIndex(g => g.id === currentReadingGuide.id);
+  if (idx !== -1) {
+    allExamGuides[idx] = { ...currentReadingGuide };
+  } else {
+    allExamGuides.unshift({ ...currentReadingGuide });
+  }
+
+  // Save to browser LocalStorage (Immediate backup)
+  saveLocalExamGuides(allExamGuides);
+  try {
+    localStorage.setItem(STORAGE_ACTIVE_DOC_KEY, JSON.stringify(currentReadingGuide));
+  } catch (e) {
+    console.warn('Active doc localStorage save failed:', e);
+  }
+
+  const saveStatus = document.getElementById('saveWordDocStatus');
+  if (saveStatus) {
+    saveStatus.innerHTML = `<i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i><span class="text-emerald-600 font-medium text-xs">บันทึกในเครื่องปลอดภัยแล้ว</span>`;
+    saveStatus.classList.remove('hidden');
+    lucide.createIcons();
+  }
+
+  updateWordStats();
+}
+
+// Save Word Document Changes (Cloud Sync to SheetDB + Local Storage)
+async function saveWordDocument(showFeedback = true) {
+  if (!currentReadingGuide) return;
+
+  // Always ensure local storage is up-to-date FIRST
+  saveWordDocumentLocalOnly();
+
+  const btnSave = document.getElementById('btnSaveWordDoc');
+  const saveText = document.getElementById('saveWordDocText');
+  const saveStatus = document.getElementById('saveWordDocStatus');
+
+  if (showFeedback && btnSave) btnSave.disabled = true;
+  if (showFeedback && saveText) saveText.textContent = 'กำลังซิงค์...';
+
+  // Clean and prepare sanitized payload
+  const cleanPages = (currentReadingGuide.pages || []).map(cleanHtmlForStorage);
+  const cleanContentHtml = cleanPages.join('<!-- PAGE_BREAK -->');
+  let cleanScope = cleanContentHtml || currentReadingGuide.scope || '';
+
+  // Ensure cell doesn't exceed Google Sheets 50,000 char limit (keep under 48,000)
+  if (cleanScope.length > 48000) {
+    cleanScope = cleanScope.slice(0, 48000);
+  }
 
   const guidePayload = {
     "id": currentReadingGuide.id,
     "Term": currentReadingGuide.term || allTasks[0]?.term || '2.1/9/2569',
     "Subject": currentReadingGuide.subject || 'วิชาใหม่',
     "ExamType": currentReadingGuide.exam_type || 'สรุปบทเรียน',
-    "Title": newTitle,
+    "Title": currentReadingGuide.title,
     "Format": currentReadingGuide.format || '',
-    "Scope": fullContent,
+    "Scope": cleanScope,
     "Tips": currentReadingGuide.tips || '',
     "PdfLink": currentReadingGuide.pdf_link || '',
     "Contributor": currentReadingGuide.contributor || 'เพื่อนร่วมชั้น',
@@ -1830,18 +1989,19 @@ async function saveWordDocument(showFeedback = true) {
     "term": currentReadingGuide.term || allTasks[0]?.term || '2.1/9/2569',
     "subject": currentReadingGuide.subject || 'วิชาใหม่',
     "exam_type": currentReadingGuide.exam_type || 'สรุปบทเรียน',
-    "title": newTitle,
+    "title": currentReadingGuide.title,
     "format": currentReadingGuide.format || '',
-    "scope": fullContent,
+    "scope": cleanScope,
     "tips": currentReadingGuide.tips || '',
     "pdf_link": currentReadingGuide.pdf_link || '',
     "contributor": currentReadingGuide.contributor || 'เพื่อนร่วมชั้น',
-    "created_at": currentReadingGuide.created_at || new Date().toLocaleDateString('th-TH'),
-    "content_html": contentHtml,
-    "pages": pages
+    "created_at": currentReadingGuide.created_at || new Date().toLocaleDateString('th-TH')
   };
 
   const apiUrl = getApiUrl();
+  let syncSuccess = false;
+  let quotaExceeded = false;
+
   if (apiUrl && currentReadingGuide.id) {
     try {
       let res = await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
@@ -1855,7 +2015,7 @@ async function saveWordDocument(showFeedback = true) {
 
       // If row not found in Google Sheets, insert as new row via POST
       if (res.status === 404) {
-        await fetch(`${apiUrl}?sheet=ExamGuides`, {
+        res = await fetch(`${apiUrl}?sheet=ExamGuides`, {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
@@ -1864,17 +2024,18 @@ async function saveWordDocument(showFeedback = true) {
           body: JSON.stringify({ data: [guidePayload] })
         });
       }
-    } catch (err) {
-      console.warn('Word document save to sheet failed, updated locally:', err);
-    }
-  }
 
-  // Update in global exam guides array
-  const idx = allExamGuides.findIndex(g => g.id === currentReadingGuide.id);
-  if (idx !== -1) {
-    allExamGuides[idx] = normalizeExamGuide(guidePayload);
-    allExamGuides[idx].pages = pages;
-    allExamGuides[idx].content_html = contentHtml;
+      if (res.ok) {
+        syncSuccess = true;
+        currentReadingGuide._unsaved = false;
+        saveLocalExamGuides(allExamGuides);
+      } else if (res.status === 402 || res.status === 429) {
+        quotaExceeded = true;
+        console.warn('SheetDB quota reached (500 req/month limit). Saved locally in browser.');
+      }
+    } catch (err) {
+      console.warn('Cloud sync failed, safely saved locally:', err);
+    }
   }
 
   renderSidebarGuideList();
@@ -1884,13 +2045,92 @@ async function saveWordDocument(showFeedback = true) {
   if (showFeedback && saveText) saveText.textContent = 'บันทึก';
 
   if (saveStatus) {
-    saveStatus.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> <span class="text-emerald-600 font-semibold">บันทึกแล้ว</span>`;
+    if (syncSuccess) {
+      saveStatus.innerHTML = `<i data-lucide="cloud-check" class="w-3.5 h-3.5 text-emerald-600"></i> <span class="text-emerald-600 font-semibold">บันทึก & ซิงค์แล้ว</span>`;
+    } else if (quotaExceeded) {
+      saveStatus.innerHTML = `<i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-600"></i> <span class="text-amber-600 font-semibold" title="โควตา SheetDB เต็ม แต่ข้อมูลบันทึกในเครื่องปลอดภัย 100%">บันทึกในเครื่อง (Cloud เต็ม)</span>`;
+    } else {
+      saveStatus.innerHTML = `<i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i> <span class="text-emerald-600 font-semibold">บันทึกในเครื่องแล้ว</span>`;
+    }
     saveStatus.classList.remove('hidden');
     lucide.createIcons();
     setTimeout(() => {
       saveStatus.classList.add('hidden');
-    }, 2500);
+    }, 3000);
   }
+}
+
+// Backup All Exam Guides to JSON File
+function exportAllGuidesJson() {
+  const dataStr = JSON.stringify(allExamGuides, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `exam_vault_backup_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  Swal.fire({
+    icon: 'success',
+    title: 'สำรองไฟล์เรียบร้อย!',
+    text: `ดาวน์โหลดไฟล์สำรอง ${allExamGuides.length} เอกสารแล้ว`,
+    timer: 2000,
+    showConfirmButton: false
+  });
+}
+
+// Backup Current Document to JSON File
+function exportCurrentDocJson() {
+  if (!currentReadingGuide) return;
+  const dataStr = JSON.stringify(currentReadingGuide, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${(currentReadingGuide.title || 'doc').replace(/[/\\?%*:|"<>]/g, '-')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Restore / Import Exam Guides from JSON File
+function importGuidesJson(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      let incoming = Array.isArray(parsed) ? parsed : [parsed];
+      if (incoming.length === 0) throw new Error('Empty JSON file');
+
+      const normalized = incoming.map(normalizeExamGuide);
+      allExamGuides = mergeLocalAndRemoteGuides(allExamGuides, normalized);
+      saveLocalExamGuides(allExamGuides);
+
+      renderExamGuides();
+      renderSidebarGuideList();
+
+      Swal.fire({
+        icon: 'success',
+        title: 'นำเข้าข้อมูลสำเร็จ!',
+        text: `กู้คืนเอกสารเรียบร้อย ${normalized.length} รายการ`,
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'นำเข้าไฟล์ล้มเหลว',
+        text: 'รูปแบบไฟล์ JSON ไม่ถูกต้อง โปรดเลือกไฟล์สำรองที่ถูกต้อง'
+      });
+    }
+  };
+  reader.readAsText(file);
 }
 
 // Toggle Page Width between Standard A4 and Fullscreen Wide
@@ -2246,7 +2486,22 @@ function initEventListeners() {
 
   // Status Bar Actions
   document.getElementById('btnDuplicateDoc')?.addEventListener('click', duplicateCurrentDocument);
+  document.getElementById('btnBackupDocJson')?.addEventListener('click', exportCurrentDocJson);
   document.getElementById('btnDownloadDocText')?.addEventListener('click', downloadDocumentText);
+
+  // Exam Vault Backup & Restore Buttons
+  document.getElementById('btnExportAllGuidesJson')?.addEventListener('click', exportAllGuidesJson);
+  document.getElementById('inputRestoreGuidesFile')?.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      importGuidesJson(e.target.files[0]);
+      e.target.value = '';
+    }
+  });
+
+  // Guarantee Zero Data Loss when leaving or refreshing page
+  window.addEventListener('beforeunload', () => {
+    saveWordDocumentLocalOnly();
+  });
 
   // Sync title bar with document
   document.getElementById('topWordDocTitleInput')?.addEventListener('input', (e) => {

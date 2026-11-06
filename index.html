@@ -352,6 +352,15 @@
               <i data-lucide="file-plus" class="w-4 h-4"></i>
               <span>+ สร้างกระดาษ Word เปล่า</span>
             </button>
+            <button id="btnExportAllGuidesJson" title="ดาวน์โหลดไฟล์สำรองข้อมูลข้อสอบทั้งหมด (.json)" class="inline-flex items-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl border border-slate-200 transition gap-1.5">
+              <i data-lucide="download" class="w-4 h-4 text-emerald-600"></i>
+              <span>สำรอง JSON</span>
+            </button>
+            <label for="inputRestoreGuidesFile" title="นำเข้าไฟล์สำรองข้อมูล (.json)" class="inline-flex items-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl border border-slate-200 transition gap-1.5 cursor-pointer">
+              <i data-lucide="upload" class="w-4 h-4 text-indigo-600"></i>
+              <span>กู้คืน</span>
+            </label>
+            <input type="file" id="inputRestoreGuidesFile" accept=".json" class="hidden">
             <button id="btnOpenAddGuideModalInView" class="inline-flex items-center px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl border border-slate-200 transition gap-1.5">
               <i data-lucide="layout-template" class="w-4 h-4 text-purple-600"></i>
               <span>ฟอร์มแชร์</span>
@@ -906,8 +915,9 @@
           <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
           <span>Google Sheets</span>
         </span>
-        <button type="button" id="btnDuplicateDoc" class="text-slate-600 hover:text-purple-600 font-medium text-[11px] transition">📑 ทำซ้ำเอกสารนี้</button>
-        <button type="button" id="btnDownloadDocText" class="text-slate-600 hover:text-indigo-600 font-medium text-[11px] transition">💾 ดาวน์โหลดไฟล์</button>
+        <button type="button" id="btnDuplicateDoc" class="text-slate-600 hover:text-purple-600 font-medium text-[11px] transition">📑 ทำซ้ำเอกสาร</button>
+        <button type="button" id="btnBackupDocJson" class="text-slate-600 hover:text-emerald-600 font-medium text-[11px] transition">📥 สำรอง JSON</button>
+        <button type="button" id="btnDownloadDocText" class="text-slate-600 hover:text-indigo-600 font-medium text-[11px] transition">💾 ดาวน์โหลดข้อความ</button>
       </div>
     </footer>
 
