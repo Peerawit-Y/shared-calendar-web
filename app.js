@@ -400,14 +400,16 @@ function switchTab(tabName) {
   const secVault = document.getElementById('sectionExamVault');
   const btnAddCal = document.getElementById('btnOpenAddModal');
   const btnAddGuide = document.getElementById('btnOpenAddGuideModal');
+  const btnNavbarCreateDoc = document.getElementById('btnNavbarCreateWordDoc');
 
   if (tabName === 'calendar') {
     tabCalBtn.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-sm transition";
     tabVaultBtn.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 transition";
     secCal.classList.remove('hidden');
     secVault.classList.add('hidden');
-    btnAddCal.classList.remove('hidden');
-    btnAddGuide.classList.add('hidden');
+    btnAddCal?.classList.remove('hidden');
+    btnAddGuide?.classList.add('hidden');
+    btnNavbarCreateDoc?.classList.add('hidden');
     setTimeout(() => {
       if (calendar) calendar.render();
     }, 50);
@@ -416,8 +418,9 @@ function switchTab(tabName) {
     tabVaultBtn.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-purple-600 shadow-sm transition";
     secCal.classList.add('hidden');
     secVault.classList.remove('hidden');
-    btnAddCal.classList.add('hidden');
-    btnAddGuide.classList.remove('hidden');
+    btnAddCal?.classList.add('hidden');
+    btnAddGuide?.classList.remove('hidden');
+    btnNavbarCreateDoc?.classList.remove('hidden');
     renderExamGuides();
   }
   lucide.createIcons();
@@ -1579,13 +1582,13 @@ function openEditModal(task) {
 // Event Listeners
 function initEventListeners() {
   // Navigation Tabs
-  document.getElementById('navTabCalendar').addEventListener('click', () => switchTab('calendar'));
-  document.getElementById('navTabExamVault').addEventListener('click', () => switchTab('exam-vault'));
+  document.getElementById('navTabCalendar')?.addEventListener('click', () => switchTab('calendar'));
+  document.getElementById('navTabExamVault')?.addEventListener('click', () => switchTab('exam-vault'));
 
   // Calendar Filters
-  document.getElementById('filterTerm').addEventListener('change', renderFiltered);
+  document.getElementById('filterTerm')?.addEventListener('change', renderFiltered);
   document.getElementById('filterSubject')?.addEventListener('change', renderFiltered);
-  document.getElementById('filterType').addEventListener('change', renderFiltered);
+  document.getElementById('filterType')?.addEventListener('change', renderFiltered);
   document.getElementById('hideCancelled')?.addEventListener('change', renderFiltered);
 
   // Exam Vault Filters
@@ -1606,14 +1609,14 @@ function initEventListeners() {
   });
 
   // Refresh Button
-  document.getElementById('btnRefresh').addEventListener('click', async () => {
+  document.getElementById('btnRefresh')?.addEventListener('click', async () => {
     await loadData();
     await loadExamGuides();
   });
 
   // Calendar Add Modal Open/Close
   const addModal = document.getElementById('addModal');
-  document.getElementById('btnOpenAddModal').addEventListener('click', () => {
+  document.getElementById('btnOpenAddModal')?.addEventListener('click', () => {
     const tomorrow = new Date(Date.now() + 86400000);
     tomorrow.setHours(23, 59, 0, 0);
     const pad = n => String(n).padStart(2, '0');
@@ -1623,17 +1626,17 @@ function initEventListeners() {
     document.getElementById('inputDueDate').value = `${y}-${m}-${d}T23:59`;
     addModal.classList.remove('hidden');
   });
-  document.getElementById('btnCloseAddModal').addEventListener('click', () => addModal.classList.add('hidden'));
-  document.getElementById('btnCancelAdd').addEventListener('click', () => addModal.classList.add('hidden'));
+  document.getElementById('btnCloseAddModal')?.addEventListener('click', () => addModal.classList.add('hidden'));
+  document.getElementById('btnCancelAdd')?.addEventListener('click', () => addModal.classList.add('hidden'));
 
   // Exam Guide Add Modal Open
   const openGuideModalHandler = () => openEditGuideModal(null);
-  document.getElementById('btnOpenAddGuideModal').addEventListener('click', openGuideModalHandler);
+  document.getElementById('btnOpenAddGuideModal')?.addEventListener('click', openGuideModalHandler);
   document.getElementById('btnOpenAddGuideModalInView')?.addEventListener('click', openGuideModalHandler);
   document.getElementById('btnEmptyAddGuide')?.addEventListener('click', openGuideModalHandler);
 
   // Exam Guide Read Modal Actions
-  document.getElementById('btnCloseReadGuide').addEventListener('click', () => {
+  document.getElementById('btnCloseReadGuide')?.addEventListener('click', () => {
     document.getElementById('modalReadExamGuide').classList.add('hidden');
     document.getElementById('readGuidePdfIframe').src = '';
   });
@@ -1641,13 +1644,13 @@ function initEventListeners() {
   document.getElementById('btnSidebarAddGuide')?.addEventListener('click', () => {
     openEditGuideModal(null);
   });
-  document.getElementById('btnViewModeA4').addEventListener('click', () => setA4ViewMode('a4'));
-  document.getElementById('btnViewModePdf').addEventListener('click', () => setA4ViewMode('pdf'));
-  document.getElementById('btnSwitchToPdfFromA4').addEventListener('click', () => setA4ViewMode('pdf'));
-  document.getElementById('btnPrintA4Sheet').addEventListener('click', () => {
+  document.getElementById('btnViewModeA4')?.addEventListener('click', () => setA4ViewMode('a4'));
+  document.getElementById('btnViewModePdf')?.addEventListener('click', () => setA4ViewMode('pdf'));
+  document.getElementById('btnSwitchToPdfFromA4')?.addEventListener('click', () => setA4ViewMode('pdf'));
+  document.getElementById('btnPrintA4Sheet')?.addEventListener('click', () => {
     window.print();
   });
-  document.getElementById('btnCopyGuideToLine').addEventListener('click', () => {
+  document.getElementById('btnCopyGuideToLine')?.addEventListener('click', () => {
     copyGuideToLine(currentReadingGuide);
   });
   document.getElementById('btnEditCurrentGuide')?.addEventListener('click', () => {
@@ -1716,6 +1719,7 @@ function initEventListeners() {
 
   // Document management actions
   document.getElementById('btnSidebarNewDoc')?.addEventListener('click', createNewBlankWordDocument);
+  document.getElementById('btnNavbarCreateWordDoc')?.addEventListener('click', createNewBlankWordDocument);
   document.getElementById('btnCreateBlankWordDocInVault')?.addEventListener('click', createNewBlankWordDocument);
   document.getElementById('btnSidebarDeleteCurrentDoc')?.addEventListener('click', deleteCurrentDocument);
 
@@ -1744,12 +1748,12 @@ function initEventListeners() {
 
   // Exam Guide Edit Modal Close
   const modalEditExamGuide = document.getElementById('modalEditExamGuide');
-  document.getElementById('btnCloseEditGuideModal').addEventListener('click', () => modalEditExamGuide.classList.add('hidden'));
-  document.getElementById('btnCancelEditGuide').addEventListener('click', () => modalEditExamGuide.classList.add('hidden'));
+  document.getElementById('btnCloseEditGuideModal')?.addEventListener('click', () => modalEditExamGuide?.classList.add('hidden'));
+  document.getElementById('btnCancelEditGuide')?.addEventListener('click', () => modalEditExamGuide?.classList.add('hidden'));
 
   // Shortcut from Calendar Detail to Exam Vault
   document.getElementById('btnViewExamGuideFromCalendar')?.addEventListener('click', () => {
-    document.getElementById('detailModal').classList.add('hidden');
+    document.getElementById('detailModal')?.classList.add('hidden');
     switchTab('exam-vault');
     if (currentDetailTask && currentDetailTask.subject) {
       const subjectSelect = document.getElementById('filterGuideSubject');
@@ -1765,10 +1769,10 @@ function initEventListeners() {
   });
 
   // Task Details Modal Close & Edit button inside Details
-  document.getElementById('btnCloseDetailModal').addEventListener('click', () => {
-    document.getElementById('detailModal').classList.add('hidden');
+  document.getElementById('btnCloseDetailModal')?.addEventListener('click', () => {
+    document.getElementById('detailModal')?.classList.add('hidden');
   });
-  document.getElementById('btnEditFromDetail').addEventListener('click', () => {
+  document.getElementById('btnEditFromDetail')?.addEventListener('click', () => {
     if (currentDetailTask) {
       openEditModal(currentDetailTask);
     }
@@ -1776,11 +1780,11 @@ function initEventListeners() {
 
   // Task Edit Modal Close
   const editModal = document.getElementById('editModal');
-  document.getElementById('btnCloseEditModal').addEventListener('click', () => editModal.classList.add('hidden'));
-  document.getElementById('btnCancelEdit').addEventListener('click', () => editModal.classList.add('hidden'));
+  document.getElementById('btnCloseEditModal')?.addEventListener('click', () => editModal?.classList.add('hidden'));
+  document.getElementById('btnCancelEdit')?.addEventListener('click', () => editModal?.classList.add('hidden'));
 
   // Add Task Submit Form
-  document.getElementById('addTaskForm').addEventListener('submit', async (e) => {
+  document.getElementById('addTaskForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btnSubmit = document.getElementById('btnSubmitAdd');
     btnSubmit.disabled = true;
@@ -1859,7 +1863,7 @@ function initEventListeners() {
   });
 
   // Edit Task Submit Form
-  document.getElementById('editTaskForm').addEventListener('submit', async (e) => {
+  document.getElementById('editTaskForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btnSubmit = document.getElementById('btnSubmitEdit');
     btnSubmit.disabled = true;
@@ -1953,7 +1957,7 @@ function initEventListeners() {
   });
 
   // Delete Task Button
-  document.getElementById('btnDeleteTask').addEventListener('click', async () => {
+  document.getElementById('btnDeleteTask')?.addEventListener('click', async () => {
     const originalTitle = document.getElementById('editOriginalTitle').value.trim();
     if (!originalTitle) return;
 
@@ -2015,7 +2019,7 @@ function initEventListeners() {
   });
 
   // Exam Guide Submit Form (Add or Edit)
-  document.getElementById('examGuideForm').addEventListener('submit', async (e) => {
+  document.getElementById('examGuideForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btnSubmit = document.getElementById('btnSubmitExamGuide');
     btnSubmit.disabled = true;
@@ -2113,7 +2117,7 @@ function initEventListeners() {
   });
 
   // Exam Guide Delete Button
-  document.getElementById('btnDeleteExamGuide').addEventListener('click', async () => {
+  document.getElementById('btnDeleteExamGuide')?.addEventListener('click', async () => {
     const originalId = document.getElementById('inputGuideOriginalId').value.trim();
     if (!originalId) return;
 
