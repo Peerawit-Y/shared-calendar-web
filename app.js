@@ -818,46 +818,82 @@ function renderExamGuides() {
   lucide.createIcons();
 }
 
-// Open Read Guide Modal (In-App Reader + In-App Embedded PDF Viewer!)
+// Switch between A4 Sheet view and PDF view inside Reader
+function setA4ViewMode(mode) {
+  const btnA4 = document.getElementById('btnViewModeA4');
+  const btnPdf = document.getElementById('btnViewModePdf');
+  const secA4 = document.getElementById('viewA4SheetContainer');
+  const secPdf = document.getElementById('viewPdfContainer');
+
+  if (mode === 'pdf') {
+    btnPdf.className = "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs transition";
+    btnA4.className = "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+    secA4.classList.add('hidden');
+    secPdf.classList.remove('hidden');
+  } else {
+    btnA4.className = "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs transition";
+    btnPdf.className = "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+    secA4.classList.remove('hidden');
+    secPdf.classList.add('hidden');
+  }
+}
+
+// Open Read Guide Modal (A4 Exam Notebook & Cheat Sheet Reader)
 function openReadGuideModal(guide) {
   if (!guide) return;
   currentReadingGuide = guide;
 
-  document.getElementById('readGuideSubjectBadge').textContent = guide.subject || 'วิชา';
-  document.getElementById('readGuideTitle').textContent = guide.title;
-  document.getElementById('readGuideTerm').textContent = `เทอม ${guide.term || '-'}`;
-  document.getElementById('readGuideExamType').textContent = guide.exam_type || '-';
-  document.getElementById('readGuideContributor').textContent = `โดย: ${guide.contributor || 'เพื่อน'}`;
+  // 1. Header Information
+  document.getElementById('readA4SubjectBadge').textContent = guide.subject || 'วิชา';
+  document.getElementById('readA4Term').textContent = `เทอม ${guide.term || '-'}`;
+  document.getElementById('readA4ExamType').textContent = (guide.exam_type || 'สอบ').toUpperCase();
+  document.getElementById('readA4Contributor').textContent = `บันทึกโดย: ${guide.contributor || 'เพื่อนร่วมชั้น'}`;
+  document.getElementById('readA4Title').textContent = guide.title;
+  document.getElementById('readA4Date').textContent = `พิมพ์วันที่: ${guide.created_at || new Date().toLocaleDateString('th-TH')}`;
 
-  // 1. Format
-  const formatBox = document.getElementById('readGuideFormatBox');
+  // 2. Exam Format / Rules
+  const formatBox = document.getElementById('readA4FormatBox');
   if (guide.format && guide.format.trim() !== '') {
-    document.getElementById('readGuideFormat').textContent = guide.format;
+    document.getElementById('readA4Format').textContent = guide.format;
     formatBox.classList.remove('hidden');
   } else {
     formatBox.classList.add('hidden');
   }
 
-  // 2. Scope
-  const scopeBox = document.getElementById('readGuideScopeBox');
+  // 3. Exam Scope (Formatted with clean notebook styling)
+  const scopeContainer = document.getElementById('readA4ScopeContainer');
+  scopeContainer.innerHTML = '';
   if (guide.scope && guide.scope.trim() !== '') {
-    document.getElementById('readGuideScope').textContent = guide.scope;
-    scopeBox.classList.remove('hidden');
+    const lines = guide.scope.split('\n').filter(Boolean);
+    lines.forEach(line => {
+      const p = document.createElement('p');
+      p.className = "py-1 border-b border-slate-100 last:border-0";
+      
+      // If line contains bold or bullet
+      if (line.includes(':')) {
+        const parts = line.split(':');
+        p.innerHTML = `<span class="bg-yellow-200/80 px-1 py-0.5 rounded font-bold text-slate-900">${parts[0]}:</span> <span class="text-slate-700">${parts.slice(1).join(':')}</span>`;
+      } else {
+        p.textContent = line;
+      }
+      scopeContainer.appendChild(p);
+    });
   } else {
-    scopeBox.classList.add('hidden');
+    scopeContainer.innerHTML = `<p class="text-slate-400 italic">ไม่มีข้อมูลขอบเขตเนื้อหา</p>`;
   }
 
-  // 3. Tips
-  const tipsBox = document.getElementById('readGuideTipsBox');
+  // 4. Tips (Post-It Sticky Note)
+  const tipsBox = document.getElementById('readA4TipsBox');
   if (guide.tips && guide.tips.trim() !== '') {
-    document.getElementById('readGuideTips').textContent = guide.tips;
+    document.getElementById('readA4Tips').textContent = guide.tips;
     tipsBox.classList.remove('hidden');
   } else {
     tipsBox.classList.add('hidden');
   }
 
-  // 4. In-App Embedded PDF Viewer
-  const pdfSection = document.getElementById('readGuidePdfSection');
+  // 5. In-App Embedded PDF Viewer Setup
+  const btnViewPdf = document.getElementById('btnViewModePdf');
+  const pdfCallout = document.getElementById('readA4PdfCallout');
   const pdfIframe = document.getElementById('readGuidePdfIframe');
   const pdfExternalLink = document.getElementById('readGuidePdfExternalLink');
 
@@ -865,11 +901,16 @@ function openReadGuideModal(guide) {
     const embedUrl = convertToEmbedUrl(guide.pdf_link);
     pdfIframe.src = embedUrl;
     pdfExternalLink.href = guide.pdf_link.startsWith('http') ? guide.pdf_link : `https://${guide.pdf_link}`;
-    pdfSection.classList.remove('hidden');
+    btnViewPdf.classList.remove('hidden');
+    pdfCallout.classList.remove('hidden');
   } else {
     pdfIframe.src = '';
-    pdfSection.classList.add('hidden');
+    btnViewPdf.classList.add('hidden');
+    pdfCallout.classList.add('hidden');
   }
+
+  // Reset to A4 Cheat Sheet Mode
+  setA4ViewMode('a4');
 
   document.getElementById('modalReadExamGuide').classList.remove('hidden');
   lucide.createIcons();
@@ -1058,9 +1099,11 @@ function initEventListeners() {
     document.getElementById('modalReadExamGuide').classList.add('hidden');
     document.getElementById('readGuidePdfIframe').src = '';
   });
-  document.getElementById('btnCloseReadGuideBottom').addEventListener('click', () => {
-    document.getElementById('modalReadExamGuide').classList.add('hidden');
-    document.getElementById('readGuidePdfIframe').src = '';
+  document.getElementById('btnViewModeA4').addEventListener('click', () => setA4ViewMode('a4'));
+  document.getElementById('btnViewModePdf').addEventListener('click', () => setA4ViewMode('pdf'));
+  document.getElementById('btnSwitchToPdfFromA4').addEventListener('click', () => setA4ViewMode('pdf'));
+  document.getElementById('btnPrintA4Sheet').addEventListener('click', () => {
+    window.print();
   });
   document.getElementById('btnCopyGuideToLine').addEventListener('click', () => {
     copyGuideToLine(currentReadingGuide);
