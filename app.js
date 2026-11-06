@@ -903,52 +903,433 @@ function renderSidebarGuideList() {
   });
 }
 
+// Word Document Auto-Save Timer
+let wordAutoSaveTimer = null;
+function triggerWordAutoSave() {
+  const saveStatus = document.getElementById('saveWordDocStatus');
+  if (saveStatus) {
+    saveStatus.innerHTML = `<i data-lucide="edit-2" class="w-3 h-3 text-amber-500 animate-pulse"></i><span class="text-amber-500">กำลังแก้ไข...</span>`;
+    saveStatus.classList.remove('hidden');
+    lucide.createIcons();
+  }
+  clearTimeout(wordAutoSaveTimer);
+  wordAutoSaveTimer = setTimeout(() => {
+    saveWordDocument(false);
+  }, 1800);
+}
+
+// Create a New Blank Word Document
+function createNewBlankWordDocument() {
+  const newId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+  const defaultTerm = allTasks[0]?.term || '2.1/9/2569';
+  const newGuide = {
+    id: newId,
+    term: defaultTerm,
+    subject: 'วิชาใหม่',
+    exam_type: 'สรุปบทเรียน & แนวข้อสอบ',
+    title: 'เอกสารสรุปบทเรียน (หน้าใหม่)',
+    content_html: '<p>เริ่มพิมพ์เนื้อหา สรุปบทเรียน หรือโน้ตข้อสอบได้ที่นี่...</p>',
+    pages: ['<p>เริ่มพิมพ์เนื้อหา สรุปบทเรียน หรือโน้ตข้อสอบได้ที่นี่...</p>'],
+    format: '',
+    scope: 'เริ่มพิมพ์เนื้อหา...',
+    tips: '',
+    pdf_link: '',
+    contributor: 'ฉันเอง',
+    created_at: new Date().toLocaleDateString('th-TH')
+  };
+
+  allExamGuides.unshift(newGuide);
+
+  // Background sync to SheetDB
+  const apiUrl = getApiUrl();
+  if (apiUrl) {
+    fetch(`${apiUrl}?sheet=ExamGuides`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ data: [newGuide] })
+    }).catch(err => console.warn('Background sync failed:', err));
+  }
+
+  const badge = document.getElementById('badgeGuideCount');
+  if (badge) badge.textContent = allExamGuides.length;
+
+  updateExamGuideFilterDropdowns();
+  renderSidebarGuideList();
+  renderExamGuides();
+  openReadGuideModal(newGuide);
+
+  // Auto-focus on title input
+  setTimeout(() => {
+    const topTitle = document.getElementById('topWordDocTitleInput');
+    if (topTitle) {
+      topTitle.focus();
+      topTitle.select();
+    }
+  }, 200);
+}
+
+// Build a Word Page Element (Multi-Page A4)
+function createWordPageElement(pageIndex, totalPages, initialContent = '', isFirstPage = false, guide = null) {
+  const pageDiv = document.createElement('div');
+  pageDiv.className = `word-page bg-white shadow-2xl border border-slate-300 ${isWordPageWide ? 'max-w-7xl' : 'max-w-5xl'} w-full min-h-[1100px] p-8 sm:p-14 text-slate-900 rounded-xs relative transition-all flex flex-col mb-8`;
+  pageDiv.dataset.pageIndex = pageIndex;
+
+  const subject = guide?.subject || 'วิชาใหม่';
+  const term = guide?.term || '2.1/9/2569';
+  const examType = guide?.exam_type || 'สรุปบทเรียน';
+  const docTitle = guide?.title || 'เอกสารไม่มีชื่อ';
+
+  pageDiv.innerHTML = `
+    <!-- Word Header Ruler / Meta Bar -->
+    <div class="border-b-2 border-slate-900 pb-3 mb-6 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-600 no-print">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span contenteditable="true" class="page-subject-badge px-3 py-1 rounded bg-slate-900 text-white font-bold uppercase tracking-wider text-xs outline-none focus:ring-2 focus:ring-purple-400" title="คลิกเพื่อแก้ไขชื่อวิชา">${subject}</span>
+        <span contenteditable="true" class="page-term font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-purple-400 px-1 rounded" title="คลิกเพื่อแก้ไขเทอม">เทอม ${term}</span>
+        <span>•</span>
+        <span contenteditable="true" class="page-exam-type font-semibold text-purple-700 outline-none focus:ring-1 focus:ring-purple-400 px-1 rounded" title="คลิกเพื่อแก้ไขประเภท">${examType.toUpperCase()}</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-slate-400 text-xs font-sans">หน้า <span class="page-num-indicator">${pageIndex + 1}</span> จาก <span class="page-total-indicator">${totalPages}</span></span>
+        ${pageIndex > 0 ? `
+          <button type="button" class="btn-delete-this-page text-slate-400 hover:text-rose-600 transition p-1 rounded hover:bg-rose-50" title="ลบหน้ากระดาษนี้">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        ` : ''}
+      </div>
+    </div>
+
+    ${isFirstPage ? `
+      <!-- Editable Document Title on Page 1 -->
+      <div contenteditable="true" class="word-doc-title outline-none focus:bg-purple-50/40 focus:ring-2 focus:ring-purple-300 rounded px-2 py-1 text-2xl sm:text-3xl font-black text-slate-900 leading-tight transition cursor-text mb-6" placeholder="พิมพ์ชื่อแนวข้อสอบ / เอกสารที่นี่...">
+        ${docTitle}
+      </div>
+    ` : ''}
+
+    <!-- Free-form Word Page Body Content -->
+    <div contenteditable="true" class="word-page-body flex-1 outline-none text-slate-800 text-sm sm:text-base leading-relaxed space-y-4 focus:ring-0 min-h-[750px] cursor-text" placeholder="พิมพ์เนื้อหา สรุปบทเรียน หรือบันทึกข้อสอบในหน้านี้...">
+      ${initialContent}
+    </div>
+
+    <!-- Word Page Footer -->
+    <div class="border-t border-slate-200 mt-10 pt-3 flex flex-wrap items-center justify-between text-xs text-slate-400 font-mono">
+      <span>🎓 A4 EXAM CHEAT SHEET • SHARED ACADEMIC HUB</span>
+      <span>หน้า ${pageIndex + 1}</span>
+    </div>
+  `;
+
+  // Delete page handler
+  pageDiv.querySelector('.btn-delete-this-page')?.addEventListener('click', () => {
+    deleteWordPage(pageIndex);
+  });
+
+  // Sync title handler
+  if (isFirstPage) {
+    const titleEl = pageDiv.querySelector('.word-doc-title');
+    titleEl?.addEventListener('input', () => {
+      const topTitleInput = document.getElementById('topWordDocTitleInput');
+      if (topTitleInput) topTitleInput.value = titleEl.innerText.trim();
+    });
+  }
+
+  // Update badge in guide on input
+  pageDiv.querySelector('.page-subject-badge')?.addEventListener('input', (e) => {
+    if (currentReadingGuide) currentReadingGuide.subject = e.target.innerText.trim();
+  });
+  pageDiv.querySelector('.page-term')?.addEventListener('input', (e) => {
+    if (currentReadingGuide) currentReadingGuide.term = e.target.innerText.replace('เทอม', '').trim();
+  });
+  pageDiv.querySelector('.page-exam-type')?.addEventListener('input', (e) => {
+    if (currentReadingGuide) currentReadingGuide.exam_type = e.target.innerText.trim();
+  });
+
+  // Auto-save on typing
+  pageDiv.querySelectorAll('[contenteditable="true"]').forEach(el => {
+    el.addEventListener('input', () => {
+      triggerWordAutoSave();
+    });
+  });
+
+  return pageDiv;
+}
+
+// Update Page Number Indicators
+function updateWordPageIndicators() {
+  const container = document.getElementById('wordPagesContainer');
+  if (!container) return;
+  const pages = container.querySelectorAll('.word-page');
+  const total = pages.length;
+
+  pages.forEach((p, idx) => {
+    p.dataset.pageIndex = idx;
+    const numEl = p.querySelector('.page-num-indicator');
+    if (numEl) numEl.textContent = idx + 1;
+    const totalEl = p.querySelector('.page-total-indicator');
+    if (totalEl) totalEl.textContent = total;
+  });
+
+  const countStatus = document.getElementById('wordPageCountStatus');
+  if (countStatus) countStatus.textContent = `${total} หน้ากระดาษ`;
+}
+
+// Add a Blank Page to the Document
+function addWordBlankPage() {
+  const container = document.getElementById('wordPagesContainer');
+  if (!container) return;
+
+  const currentCount = container.children.length;
+  const newPage = createWordPageElement(currentCount, currentCount + 1, '<p>เนื้อหาหน้า ' + (currentCount + 1) + '...</p>', false, currentReadingGuide);
+  container.appendChild(newPage);
+  
+  updateWordPageIndicators();
+  lucide.createIcons();
+  
+  newPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const bodyEl = newPage.querySelector('.word-page-body');
+  if (bodyEl) bodyEl.focus();
+
+  triggerWordAutoSave();
+}
+
+// Delete a Specific Page
+function deleteWordPage(pageIndex) {
+  const container = document.getElementById('wordPagesContainer');
+  if (!container) return;
+  const pages = container.querySelectorAll('.word-page');
+  if (pages.length <= 1) return; // Keep at least one page
+
+  pages[pageIndex]?.remove();
+  updateWordPageIndicators();
+  triggerWordAutoSave();
+}
+
+// Delete Current Document from Sidebar/Ribbon
+async function deleteCurrentDocument() {
+  if (!currentReadingGuide) return;
+  const confirmRes = await Swal.fire({
+    title: 'ยืนยันการลบเอกสาร?',
+    text: `ต้องการลบ "${currentReadingGuide.title}" ออกจากระบบใช่หรือไม่?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'ใช่, ลบเลย',
+    cancelButtonText: 'ยกเลิก'
+  });
+
+  if (!confirmRes.isConfirmed) return;
+
+  const apiUrl = getApiUrl();
+  if (apiUrl && currentReadingGuide.id) {
+    try {
+      await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json' }
+      });
+    } catch (e) {
+      console.warn('SheetDB delete error:', e);
+    }
+  }
+
+  allExamGuides = allExamGuides.filter(g => g.id !== currentReadingGuide.id);
+  const badge = document.getElementById('badgeGuideCount');
+  if (badge) badge.textContent = allExamGuides.length;
+
+  updateExamGuideFilterDropdowns();
+  renderExamGuides();
+  renderSidebarGuideList();
+
+  if (allExamGuides.length > 0) {
+    openReadGuideModal(allExamGuides[0]);
+  } else {
+    document.getElementById('modalReadExamGuide').classList.add('hidden');
+  }
+
+  Swal.fire({
+    icon: 'success',
+    title: 'ลบเอกสารเรียบร้อย!',
+    timer: 1500,
+    showConfirmButton: false
+  });
+}
+
+// Insert Helper at Cursor or Active Page
+function insertHtmlAtCursorOrActivePage(html) {
+  const sel = window.getSelection();
+  let inserted = false;
+  if (sel.getRangeAt && sel.rangeCount) {
+    let range = sel.getRangeAt(0);
+    const pageBody = range.commonAncestorContainer.nodeType === 1 
+      ? range.commonAncestorContainer.closest('.word-page-body')
+      : range.commonAncestorContainer.parentElement?.closest('.word-page-body');
+      
+    if (pageBody) {
+      range.deleteContents();
+      const el = document.createElement('div');
+      el.innerHTML = html;
+      const frag = document.createDocumentFragment();
+      let node, lastNode;
+      while ((node = el.firstChild)) {
+        lastNode = frag.appendChild(node);
+      }
+      range.insertNode(frag);
+      if (lastNode) {
+        range = range.cloneRange();
+        range.setStartAfter(lastNode);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      inserted = true;
+    }
+  }
+
+  if (!inserted) {
+    const firstBody = document.querySelector('.word-page-body');
+    if (firstBody) {
+      firstBody.insertAdjacentHTML('beforeend', html);
+    }
+  }
+  triggerWordAutoSave();
+  lucide.createIcons();
+}
+
+function insertStickyNote() {
+  const noteHtml = `
+    <div class="my-4 p-4 rounded-xl bg-yellow-100/90 border border-yellow-300 text-amber-950 shadow-xs">
+      <div class="font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-1.5">
+        <i data-lucide="sparkles" class="w-4 h-4 text-rose-500 fill-rose-500"></i>
+        <span>จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ</span>
+      </div>
+      <p>พิมพ์จุดเน้นย้ำ หรือแนวข้อสอบที่อาจารย์บอกในห้องที่นี่...</p>
+    </div>
+    <p></p>
+  `;
+  insertHtmlAtCursorOrActivePage(noteHtml);
+}
+
+function insertAlertBox() {
+  const alertHtml = `
+    <div class="my-4 p-4 rounded-xl bg-amber-50/90 border-2 border-amber-300 text-slate-800 shadow-xs">
+      <div class="font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-1.5">
+        <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i>
+        <span>กติกาห้องสอบ & รูปแบบข้อสอบ (Exam Rules)</span>
+      </div>
+      <p>ปรนัย 40 ข้อ (40 คะแนน) • อัตนัย 2 ข้อ (20 คะแนน) • อนุญาตเครื่องคิดเลข FX-991</p>
+    </div>
+    <p></p>
+  `;
+  insertHtmlAtCursorOrActivePage(alertHtml);
+}
+
+function insertTable() {
+  const tableHtml = `
+    <table class="w-full my-4 border-collapse border border-slate-300 text-sm">
+      <thead>
+        <tr class="bg-slate-100">
+          <th class="border border-slate-300 p-2.5 text-left font-bold">หัวข้อ / ประเด็น</th>
+          <th class="border border-slate-300 p-2.5 text-left font-bold">สรุปสาระสำคัญ</th>
+          <th class="border border-slate-300 p-2.5 text-left font-bold">เก็งข้อสอบ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="border border-slate-300 p-2">บทที่ 1</td>
+          <td class="border border-slate-300 p-2">สรุปเนื้อหาสำคัญ...</td>
+          <td class="border border-slate-300 p-2 text-rose-600 font-medium">ข้อเขียน 5 คะแนน</td>
+        </tr>
+        <tr>
+          <td class="border border-slate-300 p-2">บทที่ 2</td>
+          <td class="border border-slate-300 p-2">สรุปเนื้อหาสำคัญ...</td>
+          <td class="border border-slate-300 p-2 text-purple-600 font-medium">ปรนัย 10 ข้อ</td>
+        </tr>
+      </tbody>
+    </table>
+    <p></p>
+  `;
+  insertHtmlAtCursorOrActivePage(tableHtml);
+}
+
+function insertChecklist() {
+  const checklistHtml = `
+    <div class="my-3 space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+      <div class="flex items-center gap-2"><input type="checkbox" class="w-4 h-4 rounded text-purple-600"> <span>อ่านทบทวนสรุปบทเรียน</span></div>
+      <div class="flex items-center gap-2"><input type="checkbox" class="w-4 h-4 rounded text-purple-600"> <span>ฝึกทำโจทย์ & ข้อสอบเก่า</span></div>
+      <div class="flex items-center gap-2"><input type="checkbox" class="w-4 h-4 rounded text-purple-600"> <span>จดสูตรคำนวณเข้าห้องสอบ</span></div>
+    </div>
+    <p></p>
+  `;
+  insertHtmlAtCursorOrActivePage(checklistHtml);
+}
+
 // Open Read Guide Modal (Fullscreen Split View 25% / 75% Word Document Workspace)
 function openReadGuideModal(guide) {
   if (!guide) return;
   currentReadingGuide = guide;
 
-  // 1. Header Information
-  const subjectBadge = document.getElementById('readA4SubjectBadge');
-  if (subjectBadge) subjectBadge.textContent = guide.subject || 'วิชา';
+  // 1. Top Bar Document Title Input
+  const topTitleInput = document.getElementById('topWordDocTitleInput');
+  if (topTitleInput) topTitleInput.value = guide.title || 'เอกสารไม่มีชื่อ';
 
-  const termEl = document.getElementById('readA4Term');
-  if (termEl) termEl.textContent = `เทอม ${guide.term || '-'}`;
+  // 2. Render Pages into Container
+  const container = document.getElementById('wordPagesContainer');
+  if (container) {
+    container.innerHTML = '';
+    
+    let pagesData = [];
+    if (guide.pages && Array.isArray(guide.pages) && guide.pages.length > 0) {
+      pagesData = guide.pages;
+    } else if (guide.content_html && guide.content_html.trim() !== '') {
+      pagesData = [guide.content_html];
+    } else {
+      // Build standard initial structured page from format, scope, tips
+      let initialHtml = '';
+      if (guide.format && guide.format.trim() !== '') {
+        initialHtml += `
+          <div class="my-3 p-4 rounded-xl bg-amber-50/90 border-2 border-amber-300 text-slate-800 shadow-xs">
+            <div class="font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-1">
+              <span>⚠️ กติกาห้องสอบ & รูปแบบข้อสอบ (Exam Rules)</span>
+            </div>
+            <p>${guide.format.replace(/\n/g, '<br>')}</p>
+          </div>
+        `;
+      }
+      if (guide.scope && guide.scope.trim() !== '') {
+        initialHtml += `
+          <div class="my-3">
+            <h3 class="font-black text-slate-900 text-sm uppercase mb-2 border-b border-purple-200 pb-1">🎯 1. ขอบเขตเนื้อหาที่ออกสอบ</h3>
+            <p class="whitespace-pre-line leading-relaxed">${guide.scope}</p>
+          </div>
+        `;
+      }
+      if (guide.tips && guide.tips.trim() !== '') {
+        initialHtml += `
+          <div class="my-3 p-4 rounded-xl bg-yellow-100/90 border border-yellow-300 text-amber-950 shadow-xs">
+            <div class="font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-1">
+              <span>🔥 จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ (Tips)</span>
+            </div>
+            <p class="whitespace-pre-line leading-relaxed">${guide.tips}</p>
+          </div>
+        `;
+      }
+      if (!initialHtml) {
+        initialHtml = `<p>เริ่มพิมพ์เนื้อหา สรุปบทเรียน หรือบันทึกข้อสอบได้ที่นี่...</p>`;
+      }
+      pagesData = [initialHtml];
+    }
 
-  const examTypeEl = document.getElementById('readA4ExamType');
-  if (examTypeEl) examTypeEl.textContent = (guide.exam_type || 'สอบ').toUpperCase();
+    pagesData.forEach((content, idx) => {
+      const pageEl = createWordPageElement(idx, pagesData.length, content, idx === 0, guide);
+      container.appendChild(pageEl);
+    });
 
-  const contributorEl = document.getElementById('readA4Contributor');
-  if (contributorEl) contributorEl.textContent = `บันทึกโดย: ${guide.contributor || 'เพื่อนร่วมชั้น'}`;
-
-  const dateEl = document.getElementById('readA4Date');
-  if (dateEl) dateEl.textContent = `พิมพ์วันที่: ${guide.created_at || new Date().toLocaleDateString('th-TH')}`;
-
-  // 2. Editable Document Title (MS Word style)
-  const titleEl = document.getElementById('readWordTitle');
-  if (titleEl) titleEl.innerText = guide.title || '';
-
-  // 3. Editable Exam Format / Rules
-  const formatEl = document.getElementById('readWordFormat');
-  if (formatEl) {
-    formatEl.innerText = guide.format || '';
+    updateWordPageIndicators();
   }
 
-  // 4. Editable Exam Scope (Body Content)
-  const scopeEl = document.getElementById('readWordScope');
-  if (scopeEl) {
-    scopeEl.innerText = guide.scope || '';
-  }
-
-  // 5. Editable Tips (Post-It Sticky Note)
-  const tipsEl = document.getElementById('readWordTips');
-  if (tipsEl) {
-    tipsEl.innerText = guide.tips || '';
-  }
-
-  // 6. In-App Embedded PDF Viewer Setup
+  // 3. In-App Embedded PDF Viewer Setup
   const btnViewPdf = document.getElementById('btnViewModePdf');
-  const pdfCallout = document.getElementById('readA4PdfCallout');
   const pdfIframe = document.getElementById('readGuidePdfIframe');
   const pdfExternalLink = document.getElementById('readGuidePdfExternalLink');
 
@@ -957,11 +1338,9 @@ function openReadGuideModal(guide) {
     if (pdfIframe) pdfIframe.src = embedUrl;
     if (pdfExternalLink) pdfExternalLink.href = guide.pdf_link.startsWith('http') ? guide.pdf_link : `https://${guide.pdf_link}`;
     if (btnViewPdf) btnViewPdf.classList.remove('hidden');
-    if (pdfCallout) pdfCallout.classList.remove('hidden');
   } else {
     if (pdfIframe) pdfIframe.src = '';
     if (btnViewPdf) btnViewPdf.classList.add('hidden');
-    if (pdfCallout) pdfCallout.classList.add('hidden');
   }
 
   // Reset to Word / A4 Document Mode
@@ -975,45 +1354,47 @@ function openReadGuideModal(guide) {
 }
 
 // Save Word Document Changes (Direct In-Place Editing)
-async function saveWordDocument() {
+async function saveWordDocument(showFeedback = true) {
   if (!currentReadingGuide) return;
 
   const btnSave = document.getElementById('btnSaveWordDoc');
   const saveText = document.getElementById('saveWordDocText');
   const saveStatus = document.getElementById('saveWordDocStatus');
 
-  const newTitle = document.getElementById('readWordTitle')?.innerText.trim() || currentReadingGuide.title;
-  const newFormat = document.getElementById('readWordFormat')?.innerText.trim() || '';
-  const newScope = document.getElementById('readWordScope')?.innerText.trim() || '';
-  const newTips = document.getElementById('readWordTips')?.innerText.trim() || '';
+  const topTitle = document.getElementById('topWordDocTitleInput')?.value.trim();
+  const firstPageTitle = document.querySelector('.word-doc-title')?.innerText.trim();
+  const newTitle = topTitle || firstPageTitle || currentReadingGuide.title || 'เอกสารไม่มีชื่อ';
 
-  if (btnSave) btnSave.disabled = true;
-  if (saveText) saveText.textContent = 'กำลังบันทึก...';
+  // Extract pages HTML
+  const pageBodies = document.querySelectorAll('.word-page-body');
+  const pages = [];
+  pageBodies.forEach(body => {
+    pages.push(body.innerHTML);
+  });
+  const contentHtml = pages.join('<!-- PAGE_BREAK -->');
+  const textSummary = Array.from(pageBodies).map(b => b.innerText.trim()).filter(Boolean).join('\n\n');
+
+  if (showFeedback && btnSave) btnSave.disabled = true;
+  if (showFeedback && saveText) saveText.textContent = 'กำลังบันทึก...';
 
   // Update current in-memory object
   currentReadingGuide.title = newTitle;
-  currentReadingGuide.format = newFormat;
-  currentReadingGuide.scope = newScope;
-  currentReadingGuide.tips = newTips;
+  currentReadingGuide.pages = pages;
+  currentReadingGuide.content_html = contentHtml;
+  currentReadingGuide.scope = textSummary || currentReadingGuide.scope;
 
   const guidePayload = {
     ...currentReadingGuide,
     "Title": newTitle,
-    "Format": newFormat,
-    "Scope": newScope,
-    "Tips": newTips,
+    "Scope": textSummary.substring(0, 500),
     "title": newTitle,
-    "format": newFormat,
-    "scope": newScope,
-    "tips": newTips
+    "scope": textSummary.substring(0, 500)
   };
 
   const apiUrl = getApiUrl();
-  let savedToSheet = false;
-
   if (apiUrl && currentReadingGuide.id) {
     try {
-      const res = await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
+      await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
         method: 'PATCH',
         headers: {
           'Accept': 'application/json',
@@ -1021,7 +1402,6 @@ async function saveWordDocument() {
         },
         body: JSON.stringify({ data: guidePayload })
       });
-      savedToSheet = res.ok;
     } catch (err) {
       console.warn('Word document save to sheet failed, updated locally:', err);
     }
@@ -1031,16 +1411,20 @@ async function saveWordDocument() {
   const idx = allExamGuides.findIndex(g => g.id === currentReadingGuide.id);
   if (idx !== -1) {
     allExamGuides[idx] = normalizeExamGuide(guidePayload);
+    allExamGuides[idx].pages = pages;
+    allExamGuides[idx].content_html = contentHtml;
   }
 
   renderSidebarGuideList();
   renderExamGuides();
 
-  if (btnSave) btnSave.disabled = false;
-  if (saveText) saveText.textContent = 'บันทึก';
+  if (showFeedback && btnSave) btnSave.disabled = false;
+  if (showFeedback && saveText) saveText.textContent = 'บันทึก';
 
   if (saveStatus) {
+    saveStatus.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> <span class="text-emerald-600 font-semibold">บันทึกแล้ว</span>`;
     saveStatus.classList.remove('hidden');
+    lucide.createIcons();
     setTimeout(() => {
       saveStatus.classList.add('hidden');
     }, 2500);
@@ -1050,23 +1434,23 @@ async function saveWordDocument() {
 // Toggle Page Width between Standard A4 and Fullscreen Wide
 let isWordPageWide = false;
 function togglePageWidth() {
-  const paper = document.getElementById('printableA4Sheet');
+  isWordPageWide = !isWordPageWide;
+  const pages = document.querySelectorAll('.word-page');
   const label = document.getElementById('labelPageWidth');
   const icon = document.getElementById('iconPageWidth');
-  if (!paper) return;
 
-  isWordPageWide = !isWordPageWide;
-  if (isWordPageWide) {
-    paper.classList.remove('max-w-5xl');
-    paper.classList.add('max-w-7xl', 'w-full');
-    if (label) label.textContent = 'ย่อขนาด A4';
-    if (icon) icon.setAttribute('data-lucide', 'minimize-2');
-  } else {
-    paper.classList.remove('max-w-7xl');
-    paper.classList.add('max-w-5xl');
-    if (label) label.textContent = 'ขยายเต็มความกว้าง';
-    if (icon) icon.setAttribute('data-lucide', 'maximize-2');
-  }
+  pages.forEach(p => {
+    if (isWordPageWide) {
+      p.classList.remove('max-w-5xl');
+      p.classList.add('max-w-7xl', 'w-full');
+    } else {
+      p.classList.remove('max-w-7xl');
+      p.classList.add('max-w-5xl');
+    }
+  });
+
+  if (label) label.textContent = isWordPageWide ? 'ย่อ A4' : 'เต็มจอ';
+  if (icon) icon.setAttribute('data-lucide', isWordPageWide ? 'minimize-2' : 'maximize-2');
   lucide.createIcons();
 }
 
@@ -1271,25 +1655,80 @@ function initEventListeners() {
   });
 
   // Word Document Ribbon Formatting Tools (Rich Text)
+  document.getElementById('btnWordHeading1')?.addEventListener('click', () => {
+    document.execCommand('formatBlock', false, '<h1>');
+    triggerWordAutoSave();
+  });
+  document.getElementById('btnWordHeading2')?.addEventListener('click', () => {
+    document.execCommand('formatBlock', false, '<h2>');
+    triggerWordAutoSave();
+  });
+  document.getElementById('btnWordNormal')?.addEventListener('click', () => {
+    document.execCommand('formatBlock', false, '<p>');
+    triggerWordAutoSave();
+  });
   document.getElementById('btnWordBold')?.addEventListener('click', () => {
     document.execCommand('bold', false, null);
+    triggerWordAutoSave();
   });
   document.getElementById('btnWordItalic')?.addEventListener('click', () => {
     document.execCommand('italic', false, null);
+    triggerWordAutoSave();
   });
   document.getElementById('btnWordUnderline')?.addEventListener('click', () => {
     document.execCommand('underline', false, null);
+    triggerWordAutoSave();
   });
-  document.getElementById('btnWordHighlight')?.addEventListener('click', () => {
-    document.execCommand('hiliteColor', false, '#fef08a');
+  document.getElementById('btnWordStrike')?.addEventListener('click', () => {
+    document.execCommand('strikeThrough', false, null);
+    triggerWordAutoSave();
   });
+
+  // Highlighter Color palette
+  document.querySelectorAll('.btn-word-hl').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.execCommand('hiliteColor', false, btn.dataset.color || '#fef08a');
+      triggerWordAutoSave();
+    });
+  });
+
   document.getElementById('btnWordBullet')?.addEventListener('click', () => {
     document.execCommand('insertUnorderedList', false, null);
+    triggerWordAutoSave();
   });
   document.getElementById('btnWordNumbered')?.addEventListener('click', () => {
     document.execCommand('insertOrderedList', false, null);
+    triggerWordAutoSave();
   });
-  document.getElementById('btnSaveWordDoc')?.addEventListener('click', saveWordDocument);
+  document.getElementById('btnWordChecklist')?.addEventListener('click', insertChecklist);
+
+  // Insert tools
+  document.getElementById('btnInsertPage')?.addEventListener('click', addWordBlankPage);
+  document.getElementById('btnAddPageBottom')?.addEventListener('click', addWordBlankPage);
+  document.getElementById('btnInsertSticky')?.addEventListener('click', insertStickyNote);
+  document.getElementById('btnQuickStickyBottom')?.addEventListener('click', insertStickyNote);
+  document.getElementById('btnInsertTable')?.addEventListener('click', insertTable);
+  document.getElementById('btnQuickTableBottom')?.addEventListener('click', insertTable);
+  document.getElementById('btnInsertDivider')?.addEventListener('click', () => {
+    document.execCommand('insertHorizontalRule', false, null);
+    triggerWordAutoSave();
+  });
+
+  // Document management actions
+  document.getElementById('btnSidebarNewDoc')?.addEventListener('click', createNewBlankWordDocument);
+  document.getElementById('btnCreateBlankWordDocInVault')?.addEventListener('click', createNewBlankWordDocument);
+  document.getElementById('btnSidebarDeleteCurrentDoc')?.addEventListener('click', deleteCurrentDocument);
+
+  // Sync title bar with document
+  document.getElementById('topWordDocTitleInput')?.addEventListener('input', (e) => {
+    const val = e.target.value.trim();
+    if (currentReadingGuide) currentReadingGuide.title = val;
+    const docTitle = document.querySelector('.word-doc-title');
+    if (docTitle) docTitle.innerText = val;
+    triggerWordAutoSave();
+  });
+
+  document.getElementById('btnSaveWordDoc')?.addEventListener('click', () => saveWordDocument(true));
   document.getElementById('btnTogglePageWidth')?.addEventListener('click', togglePageWidth);
 
   // Shortcut Ctrl+S / Cmd+S to save Word document
