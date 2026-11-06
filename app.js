@@ -838,7 +838,72 @@ function setA4ViewMode(mode) {
   }
 }
 
-// Open Read Guide Modal (A4 Exam Notebook & Cheat Sheet Reader)
+// Render the 25% Left Sidebar Guide List in Fullscreen Workspace
+function renderSidebarGuideList() {
+  const container = document.getElementById('sidebarGuideList');
+  if (!container) return;
+
+  const searchQuery = (document.getElementById('sidebarGuideSearch')?.value || '').toLowerCase().trim();
+  const countBadge = document.getElementById('sidebarCountBadge');
+
+  const filtered = allExamGuides.filter(g => {
+    if (!searchQuery) return true;
+    const pool = `${g.title} ${g.subject} ${g.term} ${g.exam_type}`.toLowerCase();
+    return pool.includes(searchQuery);
+  });
+
+  if (countBadge) countBadge.textContent = `${filtered.length} ชุด`;
+  container.innerHTML = '';
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-8 text-slate-500 text-xs">
+        <p>ไม่พบวิชาที่ค้นหา</p>
+      </div>
+    `;
+    return;
+  }
+
+  filtered.forEach(g => {
+    const isActive = currentReadingGuide && currentReadingGuide.id === g.id;
+    const btn = document.createElement('button');
+    btn.className = `w-full text-left p-3 rounded-xl transition flex flex-col gap-1.5 border ${
+      isActive 
+        ? 'bg-purple-950/60 border-purple-500 text-white shadow-sm' 
+        : 'bg-slate-800/40 hover:bg-slate-800 border-slate-800 text-slate-300'
+    }`;
+
+    const hasPdf = Boolean(g.pdf_link && g.pdf_link.trim() !== '');
+    const hasText = Boolean(g.scope && g.scope.trim() !== '');
+    let tag = '';
+    if (hasPdf && hasText) tag = '<span class="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-medium">✨ A4+PDF</span>';
+    else if (hasPdf) tag = '<span class="text-[9px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-medium">📄 PDF</span>';
+    else tag = '<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-medium">📝 A4</span>';
+
+    btn.innerHTML = `
+      <div class="flex items-center justify-between gap-1 w-full">
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+          isActive ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-200'
+        }">${g.subject || '-'}</span>
+        ${tag}
+      </div>
+      <h4 class="text-xs font-bold leading-snug line-clamp-2 ${isActive ? 'text-white' : 'text-slate-200'}">${g.title}</h4>
+      <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+        <span>${g.term || '-'}</span>
+        <span>•</span>
+        <span class="truncate">${g.exam_type}</span>
+      </div>
+    `;
+
+    btn.addEventListener('click', () => {
+      openReadGuideModal(g);
+    });
+
+    container.appendChild(btn);
+  });
+}
+
+// Open Read Guide Modal (Fullscreen Split View 25% / 75%)
 function openReadGuideModal(guide) {
   if (!guide) return;
   currentReadingGuide = guide;
@@ -869,7 +934,7 @@ function openReadGuideModal(guide) {
       const p = document.createElement('p');
       p.className = "py-1 border-b border-slate-100 last:border-0";
       
-      // If line contains bold or bullet
+      // If line contains colon or key
       if (line.includes(':')) {
         const parts = line.split(':');
         p.innerHTML = `<span class="bg-yellow-200/80 px-1 py-0.5 rounded font-bold text-slate-900">${parts[0]}:</span> <span class="text-slate-700">${parts.slice(1).join(':')}</span>`;
@@ -911,6 +976,9 @@ function openReadGuideModal(guide) {
 
   // Reset to A4 Cheat Sheet Mode
   setA4ViewMode('a4');
+
+  // Render the left 25% sidebar so the active guide is highlighted
+  renderSidebarGuideList();
 
   document.getElementById('modalReadExamGuide').classList.remove('hidden');
   lucide.createIcons();
@@ -1098,6 +1166,10 @@ function initEventListeners() {
   document.getElementById('btnCloseReadGuide').addEventListener('click', () => {
     document.getElementById('modalReadExamGuide').classList.add('hidden');
     document.getElementById('readGuidePdfIframe').src = '';
+  });
+  document.getElementById('sidebarGuideSearch')?.addEventListener('input', renderSidebarGuideList);
+  document.getElementById('btnSidebarAddGuide')?.addEventListener('click', () => {
+    openEditGuideModal(null);
   });
   document.getElementById('btnViewModeA4').addEventListener('click', () => setA4ViewMode('a4'));
   document.getElementById('btnViewModePdf').addEventListener('click', () => setA4ViewMode('pdf'));

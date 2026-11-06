@@ -586,13 +586,26 @@
     </div>
   </div>
 
-  <!-- Modal: กระดานแนวข้อสอบ A4 (A4 Exam Notebook & Cheat Sheet Reader) -->
-  <div id="modalReadExamGuide" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 hidden flex flex-col items-center justify-start p-2 sm:p-4 overflow-y-auto">
+  <!-- Modal: หน้าต่างเต็มจอ Split View 25% / 75% (A4 Exam Notebook Workspace) -->
+  <div id="modalReadExamGuide" class="fixed inset-0 bg-slate-950 z-50 hidden flex flex-col w-screen h-screen overflow-hidden">
     
-    <!-- Top Floating Toolbar (No Print) -->
-    <div class="sticky top-2 z-20 w-full max-w-4xl bg-slate-900/90 text-white border border-slate-700/80 rounded-2xl px-4 py-2.5 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 no-print mb-4">
+    <!-- Top Fullscreen Navbar (No Print) -->
+    <header class="h-14 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between gap-3 text-white shrink-0 z-20 no-print">
       
-      <!-- Mode Switcher -->
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+          <i data-lucide="book-marked" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+            <span>กระดานจดสรุป A4 & คลังแนวข้อสอบ</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono border border-purple-500/30">A4 CHEAT SHEET</span>
+          </h2>
+        </div>
+      </div>
+
+      <!-- Center: Mode Switcher -->
       <div class="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
         <button id="btnViewModeA4" class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs transition">
           <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
@@ -604,7 +617,7 @@
         </button>
       </div>
 
-      <!-- Action Buttons -->
+      <!-- Right Action Buttons -->
       <div class="flex items-center gap-2">
         <!-- Print Button -->
         <button id="btnPrintA4Sheet" title="พิมพ์กระดาษ A4 หรือบันทึกเป็น PDF" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-medium rounded-lg border border-slate-700 transition">
@@ -625,131 +638,170 @@
         </button>
 
         <!-- Close button -->
-        <button id="btnCloseReadGuide" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition">
+        <button id="btnCloseReadGuide" title="ปิดโหมดเต็มจอ" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-    </div>
+    </header>
 
-    <!-- VIEW 1: THE A4 CHEAT SHEET & NOTEBOOK PAPER -->
-    <div id="viewA4SheetContainer" class="w-full flex justify-center pb-8">
-      <div id="printableA4Sheet" class="a4-paper-shadow notebook-ruled max-w-[840px] w-full rounded-2xl p-6 sm:p-10 border border-slate-200 text-slate-800 relative transition-all">
+    <!-- Main Workspace (Horizontal Split: 25% Left Sidebar / 75% Right Canvas) -->
+    <div class="flex-1 flex overflow-hidden w-full relative">
+      
+      <!-- LEFT PANEL (25% Width - Selection Sidebar) -->
+      <aside class="w-full md:w-1/4 lg:w-1/4 min-w-[270px] max-w-[360px] bg-slate-900 border-r border-slate-800 flex flex-col h-full z-10 no-print shrink-0">
         
-        <!-- Clipboard Clamp Graphic at Top (No Print) -->
-        <div class="no-print w-32 h-6 bg-slate-800 rounded-b-lg shadow-md mx-auto -mt-6 sm:-mt-10 mb-5 flex items-center justify-center text-slate-400 font-mono text-[9px] tracking-widest uppercase border-t border-slate-700">
-          EXAM CHEAT SHEET
+        <!-- Sidebar Search & Filter -->
+        <div class="p-3.5 border-b border-slate-800 space-y-2">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-400">
+            <span>เลือกวิชา & แนวข้อสอบ</span>
+            <span id="sidebarCountBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-purple-300 font-mono">0 ชุด</span>
+          </div>
+          <div class="relative">
+            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5"></i>
+            <input type="text" id="sidebarGuideSearch" placeholder="ค้นหาวิชา..." class="w-full text-xs pl-8 pr-3 py-2 bg-slate-800/80 border border-slate-700 text-slate-200 rounded-xl focus:ring-1 focus:ring-purple-500 placeholder-slate-500">
+          </div>
         </div>
 
-        <!-- A4 Header: University & Exam Details -->
-        <div class="border-b-2 border-slate-900 pb-4 mb-5">
-          <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-600 mb-2">
-            <div class="flex items-center gap-2">
-              <span id="readA4SubjectBadge" class="px-2.5 py-0.5 rounded bg-slate-900 text-white font-bold uppercase tracking-wider text-xs">SOFTWARE</span>
-              <span id="readA4Term" class="font-semibold text-slate-700">เทอม 2.1/9/2569</span>
-              <span>•</span>
-              <span id="readA4ExamType" class="font-semibold text-purple-700">สอบปลายภาค (FINAL)</span>
-            </div>
-            <div class="flex items-center gap-1.5 text-slate-500 font-sans text-[11px]">
-              <i data-lucide="user-check" class="w-3.5 h-3.5 text-slate-400"></i>
-              <span id="readA4Contributor">บันทึกโดย: เพื่อน Sec 1</span>
-            </div>
-          </div>
-
-          <h2 id="readA4Title" class="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
-            แนวข้อสอบ Final Software + จุดเน้นข้อเขียน
-          </h2>
+        <!-- Scrollable Guide List -->
+        <div id="sidebarGuideList" class="overflow-y-auto flex-1 p-2 space-y-1.5">
+          <!-- Dynamically rendered sidebar items -->
         </div>
 
-        <!-- Exam Rules / Instructions Banner -->
-        <div id="readA4FormatBox" class="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-3 mb-6 shadow-xs">
-          <div class="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider mb-1">
-            <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i>
-            <span>กติกาห้องสอบ & รูปแบบข้อสอบ (Exam Rules)</span>
-          </div>
-          <p id="readA4Format" class="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">-</p>
+        <!-- Sidebar Footer Action -->
+        <div class="p-3 border-t border-slate-800 bg-slate-900/60">
+          <button id="btnSidebarAddGuide" class="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white rounded-xl text-xs font-semibold border border-purple-500/30 transition">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>+ แชร์แนวข้อสอบใหม่</span>
+          </button>
         </div>
+      </aside>
 
-        <!-- 2-COLUMN A4 CHEAT SHEET BODY -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          
-          <!-- Column 1: ขอบเขตเนื้อหา & ทฤษฎีสำคัญ -->
-          <div class="space-y-4">
-            <div class="border-b border-rose-300 pb-1.5 flex items-center justify-between">
-              <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <i data-lucide="target" class="w-4 h-4 text-purple-600"></i>
-                <span>1. ขอบเขตเนื้อหาที่ออกสอบ (Scope)</span>
-              </h3>
-              <span class="text-[10px] text-slate-400 font-mono">PART A</span>
-            </div>
-
-            <div id="readA4ScopeContainer" class="text-xs sm:text-sm text-slate-800 leading-relaxed space-y-2 whitespace-pre-line pl-1 font-sans">
-              <!-- Rendered Scope items -->
-            </div>
-          </div>
-
-          <!-- Column 2: จุดเน้นอาจารย์ & สูตร & Tips (Sticky Note Aesthetic) -->
-          <div class="space-y-5">
+      <!-- RIGHT PANEL (75% Width - Desk Canvas & PDF Reader) -->
+      <main class="flex-1 bg-slate-950 overflow-y-auto p-4 sm:p-8 flex flex-col items-center justify-start relative">
+        
+        <!-- VIEW 1: THE A4 CHEAT SHEET & NOTEBOOK PAPER -->
+        <div id="viewA4SheetContainer" class="w-full flex justify-center pb-12">
+          <div id="printableA4Sheet" class="a4-paper-shadow notebook-ruled max-w-[820px] w-full rounded-2xl p-6 sm:p-10 border border-slate-200 text-slate-800 relative transition-all">
             
-            <!-- Sticky Note Callout for Tips -->
-            <div id="readA4TipsBox" class="bg-yellow-100/90 border border-yellow-300/80 rounded-xl p-4 shadow-sm relative rotate-[-0.5deg]">
-              <!-- Tape Graphic -->
-              <div class="w-16 h-4 sticky-tape rounded-xs mx-auto -mt-6 mb-2 border border-black/5 rotate-[1deg]"></div>
+            <!-- Clipboard Clamp Graphic at Top (No Print) -->
+            <div class="no-print w-32 h-6 bg-slate-800 rounded-b-lg shadow-md mx-auto -mt-6 sm:-mt-10 mb-5 flex items-center justify-center text-slate-400 font-mono text-[9px] tracking-widest uppercase border-t border-slate-700">
+              EXAM CHEAT SHEET
+            </div>
+
+            <!-- A4 Header: University & Exam Details -->
+            <div class="border-b-2 border-slate-900 pb-4 mb-5">
+              <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-600 mb-2">
+                <div class="flex items-center gap-2">
+                  <span id="readA4SubjectBadge" class="px-2.5 py-0.5 rounded bg-slate-900 text-white font-bold uppercase tracking-wider text-xs">SOFTWARE</span>
+                  <span id="readA4Term" class="font-semibold text-slate-700">เทอม 2.1/9/2569</span>
+                  <span>•</span>
+                  <span id="readA4ExamType" class="font-semibold text-purple-700">สอบปลายภาค (FINAL)</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-slate-500 font-sans text-[11px]">
+                  <i data-lucide="user-check" class="w-3.5 h-3.5 text-slate-400"></i>
+                  <span id="readA4Contributor">บันทึกโดย: เพื่อน Sec 1</span>
+                </div>
+              </div>
+
+              <h2 id="readA4Title" class="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
+                แนวข้อสอบ Final Software + จุดเน้นข้อเขียน
+              </h2>
+            </div>
+
+            <!-- Exam Rules / Instructions Banner -->
+            <div id="readA4FormatBox" class="bg-amber-50/90 border-2 border-amber-300 rounded-xl p-3 mb-6 shadow-xs">
+              <div class="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider mb-1">
+                <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i>
+                <span>กติกาห้องสอบ & รูปแบบข้อสอบ (Exam Rules)</span>
+              </div>
+              <p id="readA4Format" class="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">-</p>
+            </div>
+
+            <!-- 2-COLUMN A4 CHEAT SHEET BODY -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               
-              <div class="flex items-center gap-1.5 text-amber-900 font-black text-xs uppercase tracking-wider mb-2">
-                <i data-lucide="flame" class="w-4 h-4 text-rose-500 fill-rose-500"></i>
-                <span>จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ (Tips)</span>
-              </div>
-              <p id="readA4Tips" class="text-xs sm:text-sm text-amber-950 font-medium leading-relaxed whitespace-pre-line">-</p>
-            </div>
-
-            <!-- PDF Attachment Callout (if available) -->
-            <div id="readA4PdfCallout" class="hidden bg-purple-50/80 border border-purple-200 rounded-xl p-3.5 flex items-center justify-between gap-3 no-print">
-              <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
-                  <i data-lucide="file-text" class="w-4 h-4"></i>
+              <!-- Column 1: ขอบเขตเนื้อหา & ทฤษฎีสำคัญ -->
+              <div class="space-y-4">
+                <div class="border-b border-rose-300 pb-1.5 flex items-center justify-between">
+                  <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="target" class="w-4 h-4 text-purple-600"></i>
+                    <span>1. ขอบเขตเนื้อหาที่ออกสอบ (Scope)</span>
+                  </h3>
+                  <span class="text-[10px] text-slate-400 font-mono">PART A</span>
                 </div>
-                <div>
-                  <h4 class="text-xs font-bold text-purple-950">มีไฟล์ชีทสรุป PDF แนบไว้</h4>
-                  <p class="text-[11px] text-purple-700">กดเปิดอ่านฉบับเต็มในเว็บได้ทันที</p>
+
+                <div id="readA4ScopeContainer" class="text-xs sm:text-sm text-slate-800 leading-relaxed space-y-2 whitespace-pre-line pl-1 font-sans">
+                  <!-- Rendered Scope items -->
                 </div>
               </div>
-              <button id="btnSwitchToPdfFromA4" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition shrink-0">
-                เปิดอ่าน PDF
-              </button>
+
+              <!-- Column 2: จุดเน้นอาจารย์ & สูตร & Tips (Sticky Note Aesthetic) -->
+              <div class="space-y-5">
+                
+                <!-- Sticky Note Callout for Tips -->
+                <div id="readA4TipsBox" class="bg-yellow-100/90 border border-yellow-300/80 rounded-xl p-4 shadow-sm relative rotate-[-0.5deg]">
+                  <!-- Tape Graphic -->
+                  <div class="w-16 h-4 sticky-tape rounded-xs mx-auto -mt-6 mb-2 border border-black/5 rotate-[1deg]"></div>
+                  
+                  <div class="flex items-center gap-1.5 text-amber-900 font-black text-xs uppercase tracking-wider mb-2">
+                    <i data-lucide="flame" class="w-4 h-4 text-rose-500 fill-rose-500"></i>
+                    <span>จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ (Tips)</span>
+                  </div>
+                  <p id="readA4Tips" class="text-xs sm:text-sm text-amber-950 font-medium leading-relaxed whitespace-pre-line">-</p>
+                </div>
+
+                <!-- PDF Attachment Callout (if available) -->
+                <div id="readA4PdfCallout" class="hidden bg-purple-50/80 border border-purple-200 rounded-xl p-3.5 flex items-center justify-between gap-3 no-print">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
+                      <i data-lucide="file-text" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                      <h4 class="text-xs font-bold text-purple-950">มีไฟล์ชีทสรุป PDF แนบไว้</h4>
+                      <p class="text-[11px] text-purple-700">กดเปิดอ่านฉบับเต็มในเว็บได้ทันที</p>
+                    </div>
+                  </div>
+                  <button id="btnSwitchToPdfFromA4" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition shrink-0">
+                    เปิดอ่าน PDF
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- A4 Paper Footer -->
+            <div class="border-t-2 border-slate-900 mt-8 pt-3 flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-mono">
+              <span>🎓 A4 EXAM CHEAT SHEET • SHARED ACADEMIC HUB</span>
+              <span id="readA4Date">พิมพ์วันที่: 06/11/2569</span>
             </div>
 
           </div>
-
         </div>
 
-        <!-- A4 Paper Footer -->
-        <div class="border-t-2 border-slate-900 mt-8 pt-3 flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-mono">
-          <span>🎓 A4 EXAM CHEAT SHEET • SHARED ACADEMIC HUB</span>
-          <span id="readA4Date">พิมพ์วันที่: 06/11/2569</span>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- VIEW 2: IN-APP PDF VIEWER -->
-    <div id="viewPdfContainer" class="hidden w-full max-w-4xl pb-8">
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
-        <div class="px-5 py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs">
-          <div class="flex items-center gap-2">
-            <i data-lucide="file-text" class="w-4 h-4 text-purple-600"></i>
-            <span class="font-bold text-slate-800">เอกสารชีทสรุป PDF (เปิดอ่านในเว็บ)</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <a id="readGuidePdfExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1">
-              <span>เปิดลิงก์ต้นฉบับ</span>
-              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-            </a>
+        <!-- VIEW 2: IN-APP PDF VIEWER -->
+        <div id="viewPdfContainer" class="hidden w-full max-w-4xl pb-12">
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+            <div class="px-5 py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <i data-lucide="file-text" class="w-4 h-4 text-purple-600"></i>
+                <span class="font-bold text-slate-800">เอกสารชีทสรุป PDF (เปิดอ่านในเว็บ)</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <a id="readGuidePdfExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1">
+                  <span>เปิดลิงก์ต้นฉบับ</span>
+                  <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                </a>
+              </div>
+            </div>
+            <div class="w-full h-[calc(100vh-140px)] min-h-[550px] bg-slate-200 relative">
+              <iframe id="readGuidePdfIframe" src="" class="w-full h-full border-0" allow="autoplay"></iframe>
+            </div>
           </div>
         </div>
-        <div class="w-full h-[680px] bg-slate-200 relative">
-          <iframe id="readGuidePdfIframe" src="" class="w-full h-full border-0" allow="autoplay"></iframe>
-        </div>
-      </div>
+
+      </main>
+
     </div>
 
   </div>
