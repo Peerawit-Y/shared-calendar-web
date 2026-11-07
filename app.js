@@ -1453,12 +1453,6 @@ async function duplicateCurrentDocument() {
   allExamGuides.unshift(duplicatedGuide);
   saveLocalExamGuides(allExamGuides);
 
-  // Background sync to Supabase
-  if (supabaseClient) {
-    const payload = formatGuideForSupabase(duplicatedGuide);
-    supabaseClient.from('exam_guides').upsert(payload).catch(err => console.warn('Supabase duplicate sync error:', err));
-  }
-
   const badge = document.getElementById('badgeGuideCount');
   if (badge) badge.textContent = allExamGuides.length;
 
@@ -1466,6 +1460,16 @@ async function duplicateCurrentDocument() {
   renderSidebarGuideList();
   renderExamGuides();
   openReadGuideModal(duplicatedGuide);
+
+  // Background sync to Supabase
+  if (supabaseClient) {
+    try {
+      const payload = formatGuideForSupabase(duplicatedGuide);
+      supabaseClient.from('exam_guides').upsert(payload);
+    } catch (err) {
+      console.warn('Supabase duplicate sync error:', err);
+    }
+  }
 
   Swal.fire({
     icon: 'success',
@@ -1717,12 +1721,6 @@ function createDocumentFromTemplate(templateType) {
   allExamGuides.unshift(newGuide);
   saveLocalExamGuides(allExamGuides);
 
-  // Background sync to Supabase
-  if (supabaseClient) {
-    const payload = formatGuideForSupabase(newGuide);
-    supabaseClient.from('exam_guides').upsert(payload).catch(err => console.warn('Supabase template sync error:', err));
-  }
-
   const badge = document.getElementById('badgeGuideCount');
   if (badge) badge.textContent = allExamGuides.length;
 
@@ -1730,6 +1728,16 @@ function createDocumentFromTemplate(templateType) {
   renderSidebarGuideList();
   renderExamGuides();
   openReadGuideModal(newGuide);
+
+  // Background sync to Supabase
+  if (supabaseClient) {
+    try {
+      const payload = formatGuideForSupabase(newGuide);
+      supabaseClient.from('exam_guides').upsert(payload);
+    } catch (err) {
+      console.warn('Supabase template sync error:', err);
+    }
+  }
 }
 
 // Word Document Auto-Save: Local (Fast 300ms) & Cloud (10s to conserve SheetDB quota)
@@ -1782,12 +1790,6 @@ function createNewBlankWordDocument() {
   allExamGuides.unshift(newGuide);
   saveLocalExamGuides(allExamGuides);
 
-  // Background sync clean payload to Supabase
-  if (supabaseClient) {
-    const payload = formatGuideForSupabase(newGuide);
-    supabaseClient.from('exam_guides').upsert(payload).catch(err => console.warn('Supabase new doc sync error:', err));
-  }
-
   const badge = document.getElementById('badgeGuideCount');
   if (badge) badge.textContent = allExamGuides.length;
 
@@ -1795,6 +1797,16 @@ function createNewBlankWordDocument() {
   renderSidebarGuideList();
   renderExamGuides();
   openReadGuideModal(newGuide);
+
+  // Background sync clean payload to Supabase
+  if (supabaseClient) {
+    try {
+      const payload = formatGuideForSupabase(newGuide);
+      supabaseClient.from('exam_guides').upsert(payload);
+    } catch (err) {
+      console.warn('Supabase new doc sync error:', err);
+    }
+  }
 
   // Auto-focus on title input
   setTimeout(() => {
