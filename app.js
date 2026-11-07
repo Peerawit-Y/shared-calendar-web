@@ -4,15 +4,19 @@
 let supabaseClient = null;
 let realtimeChannel = null;
 
-// Get Supabase Configuration (.env or LocalStorage)
+// Default Supabase Configuration (Embedded for direct cloud sync on Vercel)
+const DEFAULT_SUPABASE_URL = 'https://oehdgyhazwsmwnuymwit.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_0Vkapl3CdhM6OHJMP7tH3w_S4ul8dk-';
+
+// Get Supabase Configuration (.env or LocalStorage or Default Embedded)
 function getSupabaseConfig() {
   const envUrl = import.meta.env?.VITE_SUPABASE_URL;
   const envKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
   const localUrl = localStorage.getItem('supabase_project_url');
   const localKey = localStorage.getItem('supabase_anon_key');
 
-  const url = (localUrl || envUrl || '').trim();
-  const key = (localKey || envKey || '').trim();
+  const url = (localUrl || envUrl || DEFAULT_SUPABASE_URL || '').trim();
+  const key = (localKey || envKey || DEFAULT_SUPABASE_ANON_KEY || '').trim();
   return { url, key };
 }
 
