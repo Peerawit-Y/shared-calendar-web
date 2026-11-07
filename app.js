@@ -1813,6 +1813,53 @@ function createWordPageElement(pageIndex, totalPages, initialContent = '', isFir
     });
   });
 
+  // Callout Box Protection: Prevent Enter or Paste from escaping the callout box
+  const bodyEl = pageDiv.querySelector('.word-page-body');
+  if (bodyEl) {
+    bodyEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        const callout = range.startContainer.nodeType === 1
+          ? range.startContainer.closest('.exam-callout-box, [data-callout], [class*="bg-yellow-"], [class*="bg-amber-"]')
+          : range.startContainer.parentElement?.closest('.exam-callout-box, [data-callout], [class*="bg-yellow-"], [class*="bg-amber-"]');
+
+        if (callout) {
+          e.preventDefault();
+          document.execCommand('insertLineBreak');
+          triggerWordAutoSave();
+          updateWordStats();
+        }
+      }
+    });
+
+    bodyEl.addEventListener('paste', (e) => {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const callout = range.startContainer.nodeType === 1
+        ? range.startContainer.closest('.exam-callout-box, [data-callout], [class*="bg-yellow-"], [class*="bg-amber-"]')
+        : range.startContainer.parentElement?.closest('.exam-callout-box, [data-callout], [class*="bg-yellow-"], [class*="bg-amber-"]');
+
+      if (callout) {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+        if (!text) return;
+        const lines = text.split(/\r\n|\r|\n/);
+        const html = lines.map(line => {
+          const span = document.createElement('span');
+          span.textContent = line;
+          return span.innerHTML;
+        }).join('<br>');
+
+        document.execCommand('insertHTML', false, html);
+        triggerWordAutoSave();
+        updateWordStats();
+      }
+    });
+  }
+
   return pageDiv;
 }
 
@@ -1982,30 +2029,48 @@ function insertHtmlAtCursorOrActivePage(html) {
   lucide.createIcons();
 }
 
+// Enhance callout boxes: ensure header is uneditable and has proper classes
+function enhanceCalloutBoxes(container) {
+  if (!container) return;
+  const callouts = container.querySelectorAll('.exam-callout-box, [data-callout], [class*="bg-yellow-100"], [class*="bg-amber-"]');
+  callouts.forEach(box => {
+    box.classList.add('exam-callout-box');
+    const header = box.querySelector('.callout-header, div.font-bold');
+    if (header) {
+      header.classList.add('callout-header');
+      header.setAttribute('contenteditable', 'false');
+    }
+  });
+}
+
 function insertStickyNote() {
   const noteHtml = `
-    <div class="my-4 p-4 rounded-xl bg-yellow-100/90 border border-yellow-300 text-amber-950 shadow-xs">
-      <div class="font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-1.5">
+    <div class="exam-callout-box my-4 p-4 rounded-xl bg-yellow-100/90 border border-yellow-300 text-amber-950 shadow-xs" data-callout="exam-tips">
+      <div class="callout-header font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-2 select-none" contenteditable="false">
         <i data-lucide="sparkles" class="w-4 h-4 text-rose-500 fill-rose-500"></i>
         <span>จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ</span>
       </div>
-      <p>พิมพ์จุดเน้นย้ำ หรือแนวข้อสอบที่อาจารย์บอกในห้องที่นี่...</p>
+      <div class="callout-content min-h-[30px] leading-relaxed">
+        <p>พิมพ์จุดเน้นย้ำ หรือแนวข้อสอบที่อาจารย์บอกในห้องที่นี่...</p>
+      </div>
     </div>
-    <p></p>
+    <p><br></p>
   `;
   insertHtmlAtCursorOrActivePage(noteHtml);
 }
 
 function insertAlertBox() {
   const alertHtml = `
-    <div class="my-4 p-4 rounded-xl bg-amber-50/90 border-2 border-amber-300 text-slate-800 shadow-xs">
-      <div class="font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-1.5">
+    <div class="exam-callout-box my-4 p-4 rounded-xl bg-amber-50/90 border-2 border-amber-300 text-slate-800 shadow-xs" data-callout="exam-rules">
+      <div class="callout-header font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-2 select-none" contenteditable="false">
         <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i>
         <span>กติกาห้องสอบ & รูปแบบข้อสอบ (Exam Rules)</span>
       </div>
-      <p>ปรนัย 40 ข้อ (40 คะแนน) • อัตนัย 2 ข้อ (20 คะแนน) • อนุญาตเครื่องคิดเลข FX-991</p>
+      <div class="callout-content min-h-[30px] leading-relaxed">
+        <p>ปรนัย 40 ข้อ (40 คะแนน) • อัตนัย 2 ข้อ (20 คะแนน) • อนุญาตเครื่องคิดเลข FX-991</p>
+      </div>
     </div>
-    <p></p>
+    <p><br></p>
   `;
   insertHtmlAtCursorOrActivePage(alertHtml);
 }
@@ -2115,6 +2180,7 @@ function openReadGuideModal(guide) {
       container.appendChild(pageEl);
     });
 
+    enhanceCalloutBoxes(container);
     updateWordPageIndicators();
     applyWordTheme(currentWordTheme);
     updateWordStats();
