@@ -68,15 +68,16 @@ function setupSupabaseRealtime() {
     .subscribe();
 }
 
-// Local Storage Key for Tasks
+// Local Storage Keys for Tasks
 const STORAGE_TASKS_KEY = 'shared_calendar_tasks_v2';
+const STORAGE_TASKS_INITIALIZED = 'shared_calendar_tasks_init_v2';
 
 function getLocalTasks() {
   try {
     const raw = localStorage.getItem(STORAGE_TASKS_KEY);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed.map(normalizeTask);
+      if (Array.isArray(parsed)) return parsed.map(normalizeTask);
     }
   } catch (e) {}
   return null;
@@ -629,14 +630,14 @@ async function loadData() {
 
   // STEP 1: Immediately render from LocalStorage! (Instant 0s load)
   const localTasks = getLocalTasks();
-  if (localTasks && localTasks.length > 0) {
+  if (localTasks !== null) {
     const hasOldMock = localTasks.some(t => t.subject === 'CS101' || t.term === '1/2569');
     if (hasOldMock) {
       allTasks = defaultDemoData.map(normalizeTask);
+      saveLocalTasks(allTasks);
     } else {
-      allTasks = localTasks.map(normalizeTask);
+      allTasks = localTasks;
     }
-    saveLocalTasks(allTasks);
     renderAllViews();
   }
 
@@ -656,10 +657,12 @@ async function loadData() {
     }
   }
 
-  // STEP 3: Fallback only if local and Supabase are both empty
-  if (!allTasks || allTasks.length === 0) {
+  // STEP 3: Fallback only if app has NEVER been initialized
+  const isTasksInit = localStorage.getItem(STORAGE_TASKS_INITIALIZED);
+  if (!isTasksInit && (!allTasks || allTasks.length === 0)) {
     allTasks = defaultDemoData.map(normalizeTask);
     saveLocalTasks(allTasks);
+    localStorage.setItem(STORAGE_TASKS_INITIALIZED, 'true');
     renderAllViews();
   }
 
@@ -669,6 +672,29 @@ async function loadData() {
 // Local-First Storage Keys
 const STORAGE_EXAM_GUIDES_KEY = 'shared_calendar_exam_guides_v2';
 const STORAGE_ACTIVE_DOC_KEY = 'shared_calendar_active_doc_v2';
+const STORAGE_DELETED_GUIDES_KEY = 'shared_calendar_deleted_guide_ids_v2';
+const STORAGE_GUIDES_INITIALIZED = 'shared_calendar_guides_init_v2';
+
+// Tombstone Helpers: Never resurrect deleted guides on refresh!
+function getDeletedGuideIds() {
+  try {
+    const raw = localStorage.getItem(STORAGE_DELETED_GUIDES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function markGuideAsDeleted(id) {
+  if (!id) return;
+  try {
+    const list = getDeletedGuideIds();
+    if (!list.includes(id)) {
+      list.push(id);
+      localStorage.setItem(STORAGE_DELETED_GUIDES_KEY, JSON.stringify(list));
+    }
+  } catch (e) {}
+}
 
 // Clean HTML to avoid bloating and staying well below Google Sheets 50,000 char cell limit
 function cleanHtmlForStorage(html) {
@@ -705,10 +731,11 @@ function cleanHtmlForStorage(html) {
 function getLocalExamGuides() {
   try {
     const raw = localStorage.getItem(STORAGE_EXAM_GUIDES_KEY);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(normalizeExamGuide);
+      if (Array.isArray(parsed)) {
+        const deletedIds = getDeletedGuideIds();
+        return parsed.filter(g => !deletedIds.includes(g.id)).map(normalizeExamGuide);
       }
     }
   } catch (e) {
@@ -728,13 +755,17 @@ function saveLocalExamGuides(guides) {
 
 // Smart Merge: Remote data will NEVER overwrite local unsaved changes or active typing!
 function mergeLocalAndRemoteGuides(localList, remoteList) {
-  if (!localList || localList.length === 0) return remoteList;
-  if (!remoteList || remoteList.length === 0) return localList;
+  const deletedIds = getDeletedGuideIds();
+  const filteredRemote = (remoteList || []).filter(rem => !deletedIds.includes(rem.id));
+  const filteredLocal = (localList || []).filter(loc => !deletedIds.includes(loc.id));
 
-  const merged = [...localList];
-  const localMap = new Map(localList.map(g => [g.id, g]));
+  if (filteredLocal.length === 0) return filteredRemote;
+  if (filteredRemote.length === 0) return filteredLocal;
 
-  remoteList.forEach(rem => {
+  const merged = [...filteredLocal];
+  const localMap = new Map(filteredLocal.map(g => [g.id, g]));
+
+  filteredRemote.forEach(rem => {
     const local = localMap.get(rem.id);
     if (!local) {
       // New guide from cloud that doesn't exist locally
@@ -766,7 +797,7 @@ async function loadExamGuides() {
 
   // STEP 1: Immediately render from LocalStorage! (Instant load, 0s delay, never loses text)
   const localCached = getLocalExamGuides();
-  if (localCached && localCached.length > 0) {
+  if (localCached !== null) {
     allExamGuides = localCached;
     if (badge) badge.textContent = allExamGuides.length;
     updateExamGuideFilterDropdowns();
@@ -778,7 +809,7 @@ async function loadExamGuides() {
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient.from('exam_guides').select('*');
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         const normalizedRemote = data.map(normalizeExamGuide);
         allExamGuides = mergeLocalAndRemoteGuides(allExamGuides, normalizedRemote);
         saveLocalExamGuides(allExamGuides);
@@ -794,10 +825,13 @@ async function loadExamGuides() {
     }
   }
 
-  // STEP 3: Fallback only if local AND remote are totally empty
-  if (!allExamGuides || allExamGuides.length === 0) {
-    allExamGuides = defaultDemoExamGuides.map(normalizeExamGuide);
+  // STEP 3: Fallback only if app has NEVER been initialized
+  const isGuidesInit = localStorage.getItem(STORAGE_GUIDES_INITIALIZED);
+  if (!isGuidesInit && (!allExamGuides || allExamGuides.length === 0)) {
+    const deletedIds = getDeletedGuideIds();
+    allExamGuides = defaultDemoExamGuides.filter(g => !deletedIds.includes(g.id)).map(normalizeExamGuide);
     saveLocalExamGuides(allExamGuides);
+    localStorage.setItem(STORAGE_GUIDES_INITIALIZED, 'true');
   }
 
   if (badge) badge.textContent = allExamGuides.length;
@@ -1118,12 +1152,22 @@ function renderExamGuides() {
       <!-- Card Footer -->
       <div class="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
         <span class="text-[11px] text-slate-400 truncate">โดย: ${guide.contributor || 'เพื่อน'}</span>
-        <button class="btn-open-read-guide inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white font-semibold rounded-xl text-xs transition shadow-2xs">
-          <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
-          <span>เปิดอ่านแนวข้อสอบ</span>
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button class="btn-delete-guide-card p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="ลบแนวข้อสอบนี้">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+          <button class="btn-open-read-guide inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white font-semibold rounded-xl text-xs transition shadow-2xs">
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+            <span>เปิดอ่านแนวข้อสอบ</span>
+          </button>
+        </div>
       </div>
     `;
+
+    card.querySelector('.btn-delete-guide-card')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteGuideById(guide.id, guide.title);
+    });
 
     card.querySelector('.btn-open-read-guide').addEventListener('click', () => {
       openReadGuideModal(guide);
@@ -1824,12 +1868,13 @@ function deleteWordPage(pageIndex) {
   triggerWordAutoSave();
 }
 
-// Delete Current Document from Sidebar/Ribbon
-async function deleteCurrentDocument() {
-  if (!currentReadingGuide) return;
+// Universal Delete Exam Guide / Document (Guarantees it never returns on refresh)
+async function deleteGuideById(guideId, guideTitle) {
+  if (!guideId) return;
+
   const confirmRes = await Swal.fire({
-    title: 'ยืนยันการลบเอกสาร?',
-    text: `ต้องการลบ "${currentReadingGuide.title}" ออกจากระบบใช่หรือไม่?`,
+    title: 'ยืนยันการลบแนวข้อสอบ?',
+    text: `ต้องการลบ "${guideTitle || 'แนวข้อสอบนี้'}" ออกจากระบบใช่หรือไม่?`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#ef4444',
@@ -1840,16 +1885,29 @@ async function deleteCurrentDocument() {
 
   if (!confirmRes.isConfirmed) return;
 
-  if (supabaseClient && currentReadingGuide.id) {
+  // 1. Mark in tombstone so it NEVER resurrects on reload or cloud merge
+  markGuideAsDeleted(guideId);
+
+  // 2. Delete from Supabase Cloud
+  if (supabaseClient) {
     try {
-      await supabaseClient.from('exam_guides').delete().eq('id', currentReadingGuide.id);
+      await supabaseClient.from('exam_guides').delete().eq('id', guideId);
     } catch (e) {
       console.warn('Supabase delete error:', e);
     }
   }
 
-  allExamGuides = allExamGuides.filter(g => g.id !== currentReadingGuide.id);
+  // 3. Remove from in-memory array and update localStorage
+  allExamGuides = allExamGuides.filter(g => g.id !== guideId);
   saveLocalExamGuides(allExamGuides);
+  localStorage.setItem(STORAGE_GUIDES_INITIALIZED, 'true');
+
+  // 4. CRITICAL: Clear currentReadingGuide so beforeunload never saves it back!
+  if (currentReadingGuide && currentReadingGuide.id === guideId) {
+    currentReadingGuide = null;
+    localStorage.removeItem(STORAGE_ACTIVE_DOC_KEY);
+  }
+
   const badge = document.getElementById('badgeGuideCount');
   if (badge) badge.textContent = allExamGuides.length;
 
@@ -1857,18 +1915,30 @@ async function deleteCurrentDocument() {
   renderExamGuides();
   renderSidebarGuideList();
 
-  if (allExamGuides.length > 0) {
-    openReadGuideModal(allExamGuides[0]);
-  } else {
-    document.getElementById('modalReadExamGuide').classList.add('hidden');
+  const modalRead = document.getElementById('modalReadExamGuide');
+  const modalEdit = document.getElementById('modalEditExamGuide');
+  if (modalEdit) modalEdit.classList.add('hidden');
+
+  if (modalRead && !modalRead.classList.contains('hidden')) {
+    if (allExamGuides.length > 0) {
+      openReadGuideModal(allExamGuides[0]);
+    } else {
+      modalRead.classList.add('hidden');
+    }
   }
 
   Swal.fire({
     icon: 'success',
-    title: 'ลบเอกสารเรียบร้อย!',
+    title: 'ลบเรียบร้อย!',
     timer: 1500,
     showConfirmButton: false
   });
+}
+
+// Delete Current Document from Sidebar/Ribbon
+async function deleteCurrentDocument() {
+  if (!currentReadingGuide) return;
+  await deleteGuideById(currentReadingGuide.id, currentReadingGuide.title);
 }
 
 // Insert Helper at Cursor or Active Page
@@ -2077,7 +2147,15 @@ function openReadGuideModal(guide) {
 
 // Save Word Document Locally (Immediate 300ms, NEVER LOSES TEXT)
 function saveWordDocumentLocalOnly() {
-  if (!currentReadingGuide) return;
+  if (!currentReadingGuide || !currentReadingGuide.id) return;
+
+  // Never resurrect deleted guides!
+  const deletedIds = getDeletedGuideIds();
+  if (deletedIds.includes(currentReadingGuide.id)) {
+    currentReadingGuide = null;
+    localStorage.removeItem(STORAGE_ACTIVE_DOC_KEY);
+    return;
+  }
 
   const topTitle = document.getElementById('topWordDocTitleInput')?.value.trim();
   const firstPageTitle = document.querySelector('.word-doc-title')?.innerText.trim();
@@ -2984,44 +3062,8 @@ function initEventListeners() {
   document.getElementById('btnDeleteExamGuide')?.addEventListener('click', async () => {
     const originalId = document.getElementById('inputGuideOriginalId').value.trim();
     if (!originalId) return;
-
-    const confirmRes = await Swal.fire({
-      title: 'ยืนยันการลบแนวข้อสอบ?',
-      text: 'คุณต้องการลบแนวข้อสอบชุดนี้ใช่หรือไม่?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#64748b',
-      confirmButtonText: 'ใช่, ลบเลย',
-      cancelButtonText: 'ยกเลิก'
-    });
-
-    if (!confirmRes.isConfirmed) return;
-
-    if (supabaseClient) {
-      try {
-        await supabaseClient.from('exam_guides').delete().eq('id', originalId);
-      } catch (e) {
-        console.warn('Supabase delete guide error:', e);
-      }
-    }
-
-    allExamGuides = allExamGuides.filter(g => g.id !== originalId);
-    saveLocalExamGuides(allExamGuides);
-
-    const badge = document.getElementById('badgeGuideCount');
-    if (badge) badge.textContent = allExamGuides.length;
-
-    updateExamGuideFilterDropdowns();
-    renderExamGuides();
-
-    document.getElementById('modalEditExamGuide').classList.add('hidden');
-    Swal.fire({
-      icon: 'success',
-      title: 'ลบแนวข้อสอบสำเร็จ!',
-      timer: 1500,
-      showConfirmButton: false
-    });
+    const guide = allExamGuides.find(g => g.id === originalId);
+    await deleteGuideById(originalId, guide?.title);
   });
 
   // Database Settings Modal Event Handlers
