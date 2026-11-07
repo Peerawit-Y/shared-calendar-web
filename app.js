@@ -65,14 +65,37 @@ function updateDbStatusBadge(isConnected, label, statusType = 'normal') {
   }
 }
 
-// Setup Supabase Realtime Subscriptions (Broadcasts changes live across all open screens)
+// Unique session ID for realtime presence tracking
+const clientSessionId = `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+// Update Online Users Presence Badge
+function updateOnlineUsersBadge(count) {
+  const badge = document.getElementById('badgeOnlineUsers');
+  const text = document.getElementById('textOnlineCount');
+  if (badge) {
+    if (count > 0) {
+      badge.classList.remove('hidden');
+    }
+  }
+  if (text) {
+    text.textContent = count > 1 ? `ออนไลน์ ${count} คน` : `ออนไลน์ 1 คน (คุณ)`;
+  }
+}
+
+// Setup Supabase Realtime Subscriptions & Presence
 function setupSupabaseRealtime() {
   if (!supabaseClient) return;
   if (realtimeChannel) {
     supabaseClient.removeChannel(realtimeChannel);
   }
 
-  realtimeChannel = supabaseClient.channel('db-live-sync')
+  realtimeChannel = supabaseClient.channel('db-live-sync', {
+    config: {
+      presence: {
+        key: clientSessionId
+      }
+    }
+  })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
       console.log('Realtime tasks update:', payload);
       loadData();
@@ -84,7 +107,32 @@ function setupSupabaseRealtime() {
         loadExamGuides();
       }
     })
-    .subscribe();
+    .on('presence', { event: 'sync' }, () => {
+      const state = realtimeChannel.presenceState();
+      const count = Object.keys(state).length;
+      updateOnlineUsersBadge(count);
+    })
+    .on('presence', { event: 'join' }, () => {
+      const state = realtimeChannel.presenceState();
+      const count = Object.keys(state).length;
+      updateOnlineUsersBadge(count);
+    })
+    .on('presence', { event: 'leave' }, () => {
+      const state = realtimeChannel.presenceState();
+      const count = Object.keys(state).length;
+      updateOnlineUsersBadge(count);
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        try {
+          await realtimeChannel.track({
+            online_at: new Date().toISOString()
+          });
+        } catch (e) {
+          console.warn('Realtime presence track error:', e);
+        }
+      }
+    });
 }
 
 // Local Storage Keys for Tasks
