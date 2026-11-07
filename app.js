@@ -1250,9 +1250,9 @@ function renderExamGuides() {
           <button class="btn-delete-guide-card p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="ลบแนวข้อสอบนี้">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
           </button>
-          <button class="btn-open-read-guide inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white font-semibold rounded-xl text-xs transition shadow-2xs">
-            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
-            <span>เปิดอ่านแนวข้อสอบ</span>
+          <button class="btn-open-read-guide inline-flex items-center gap-1.5 px-3 py-1.5 ${hasPdf ? 'bg-rose-50 hover:bg-rose-600 text-rose-700' : 'bg-purple-50 hover:bg-purple-600 text-purple-700'} hover:text-white font-semibold rounded-xl text-xs transition shadow-2xs">
+            <i data-lucide="${hasPdf ? 'file-text' : 'book-open'}" class="w-3.5 h-3.5"></i>
+            <span>${hasPdf ? 'เปิดอ่านไฟล์ PDF' : 'เปิดอ่านแนวข้อสอบ'}</span>
           </button>
         </div>
       </div>
@@ -2401,18 +2401,21 @@ function openReadGuideModal(guide) {
   const pdfIframe = document.getElementById('readGuidePdfIframe');
   const pdfExternalLink = document.getElementById('readGuidePdfExternalLink');
 
-  if (guide.pdf_link && guide.pdf_link.trim() !== '') {
+  const hasPdf = Boolean(guide.pdf_link && guide.pdf_link.trim() !== '');
+
+  if (hasPdf) {
     const embedUrl = convertToEmbedUrl(guide.pdf_link);
     if (pdfIframe) pdfIframe.src = embedUrl;
     if (pdfExternalLink) pdfExternalLink.href = guide.pdf_link.startsWith('http') ? guide.pdf_link : `https://${guide.pdf_link}`;
     if (btnViewPdf) btnViewPdf.classList.remove('hidden');
+    // หากมีไฟล์ PDF ให้เปิดแสดง PDF เป็นหลักทันทีตามคำขอ
+    setA4ViewMode('pdf');
   } else {
     if (pdfIframe) pdfIframe.src = '';
     if (btnViewPdf) btnViewPdf.classList.add('hidden');
+    // หากไม่มี PDF ให้แสดงโหมดกระดาษ Word/A4
+    setA4ViewMode('a4');
   }
-
-  // Reset to Word / A4 Document Mode
-  setA4ViewMode('a4');
 
   // Render the left 25% sidebar so the active guide is highlighted
   renderSidebarGuideList();
