@@ -94,3 +94,10 @@ SET
   status = EXCLUDED.status,
   link = EXCLUDED.link;
 
+-- 6. นำเข้าข้อมูลแนวข้อสอบ & สรุป (1 รายการหลัก วิชา AI)
+INSERT INTO public.exam_guides (id, term, subject, exam_type, title, format, scope, tips, pdf_link, contributor, created_at)
+VALUES
+  ('guide_3', '1.2/2569', 'ai', 'สอบปลายภาค (Final)', 'แนวข้อสอบ & เกณฑ์พรีเซนต์โปรเจกต์ปัญญาประดิษฐ์', 'พรีเซนต์โปรเจกต์กลุ่ม 15 นาที + ตอบคำถามอาจารย์ 5 นาที', '• Architecture ของ Model ที่เลือกใช้ (CNN / NLP / Decision Tree)\n• Training & Validation Metrics (Accuracy, Precision, Recall, F1-Score)\n• Live Demonstration ระบบจริง', '💡 เตรียมตอบว่าทำไมถึงเลือกใช้ Model นี้ และถ้าเจอปัญหา Overfitting จะมีวิธีแก้อย่างไร', 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', 'Peerawit', '06/11/2026')
+ON CONFLICT (id) DO NOTHING;
+
+

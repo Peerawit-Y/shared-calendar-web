@@ -22,27 +22,46 @@ function initSupabase() {
   if (url && key && window.supabase?.createClient) {
     try {
       supabaseClient = window.supabase.createClient(url, key);
-      updateDbStatusBadge(true, 'Supabase (Realtime)');
+      updateDbStatusBadge(true, 'Supabase (กำลังเชื่อมต่อ...)');
       setupSupabaseRealtime();
       return true;
     } catch (e) {
       console.warn('Supabase initialization failed:', e);
+      updateDbStatusBadge(false, 'เกิดข้อผิดพลาดในการเริ่มระบบ', 'error');
     }
+  } else {
+    const missing = [];
+    if (!url) missing.push('URL');
+    if (!key) missing.push('Anon Key');
+    const msg = missing.length > 0 ? `ยังไม่พบ ${missing.join(', ')} (คลิกตั้งค่า)` : 'ออฟไลน์ (คลิกตั้งค่า)';
+    updateDbStatusBadge(false, msg, 'warning');
   }
   supabaseClient = null;
-  updateDbStatusBadge(false, 'Local Storage');
   return false;
 }
 
 // Update DB Connection Status Badge in Navbar
-function updateDbStatusBadge(isConnected, label) {
+function updateDbStatusBadge(isConnected, label, statusType = 'normal') {
   const dot = document.getElementById('badgeDbStatusDot');
   const text = document.getElementById('labelDbStatus');
   if (dot) {
-    dot.className = `w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`;
+    if (isConnected) {
+      dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+    } else if (statusType === 'warning') {
+      dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+    } else {
+      dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+    }
   }
   if (text) {
-    text.textContent = isConnected ? '⚡ Supabase' : 'เชื่อมต่อ Supabase';
+    text.textContent = label || (isConnected ? '⚡ Supabase ออนไลน์' : 'ออฟไลน์ (คลิกตั้งค่า)');
+    if (isConnected) {
+      text.className = 'text-emerald-600 font-semibold';
+    } else if (statusType === 'warning') {
+      text.className = 'text-amber-600 font-medium';
+    } else {
+      text.className = 'text-rose-500 font-medium';
+    }
   }
 }
 
@@ -623,6 +642,56 @@ function initCalendar() {
   });
 }
 
+// Auto-seed helpers: Automatically populate empty Supabase tables from current local data
+async function autoSeedTasksToCloud(tasks) {
+  if (!supabaseClient || !Array.isArray(tasks) || tasks.length === 0) return;
+  try {
+    const payload = tasks.map(t => ({
+      id: t.id || `task_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      term: t.term || '',
+      subject: t.subject || '',
+      title: t.title || '',
+      type: t.type || 'การบ้าน',
+      due_date: t.due_date || '',
+      status: t.status || 'รอดำเนินการ',
+      link: t.link || ''
+    }));
+    const { error } = await supabaseClient.from('tasks').upsert(payload);
+    if (!error) {
+      console.log('Auto-seeded tasks to Supabase Cloud successfully');
+    }
+  } catch (err) {
+    console.warn('Auto-seed tasks to Cloud failed:', err);
+  }
+}
+
+async function autoSeedExamGuidesToCloud(guides) {
+  if (!supabaseClient || !Array.isArray(guides) || guides.length === 0) return;
+  try {
+    const payload = guides.map(g => ({
+      id: g.id || `guide_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      term: g.term || '',
+      subject: g.subject || '',
+      exam_type: g.exam_type || 'สรุปบทเรียน',
+      title: g.title || '',
+      format: g.format || '',
+      scope: g.scope || g.content_html || '',
+      tips: g.tips || '',
+      pdf_link: g.pdf_link || '',
+      contributor: g.contributor || 'เพื่อนร่วมชั้น',
+      content_html: g.content_html || g.scope || '',
+      pages: Array.isArray(g.pages) ? g.pages : [],
+      created_at: g.created_at || new Date().toLocaleDateString('th-TH')
+    }));
+    const { error } = await supabaseClient.from('exam_guides').upsert(payload);
+    if (!error) {
+      console.log('Auto-seeded exam_guides to Supabase Cloud successfully');
+    }
+  } catch (err) {
+    console.warn('Auto-seed exam_guides to Cloud failed:', err);
+  }
+}
+
 // Fetch Tasks (From Supabase with Local Storage Cache)
 async function loadData() {
   const refreshIcon = document.getElementById('refreshIcon');
@@ -645,15 +714,24 @@ async function loadData() {
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient.from('tasks').select('*');
-      if (!error && Array.isArray(data) && data.length > 0) {
-        allTasks = data.map(normalizeTask);
-        saveLocalTasks(allTasks);
+      if (error) {
+        console.warn('Supabase tasks load error:', error);
+        updateDbStatusBadge(false, error.message?.includes('does not exist') ? 'ยังไม่ได้รัน SQL Schema' : 'เชื่อมต่อ Supabase ล้มเหลว', 'error');
+      } else if (Array.isArray(data)) {
+        updateDbStatusBadge(true, '⚡ Supabase ออนไลน์');
+        if (data.length === 0 && allTasks.length > 0) {
+          await autoSeedTasksToCloud(allTasks);
+        } else if (data.length > 0) {
+          allTasks = data.map(normalizeTask);
+          saveLocalTasks(allTasks);
+        }
         renderAllViews();
         refreshIcon?.classList.remove('animate-spin');
         return;
       }
     } catch (e) {
       console.warn('Supabase tasks load error:', e);
+      updateDbStatusBadge(false, 'เชื่อมต่อ Supabase ล้มเหลว', 'error');
     }
   }
 
@@ -759,32 +837,29 @@ function mergeLocalAndRemoteGuides(localList, remoteList) {
   const filteredRemote = (remoteList || []).filter(rem => !deletedIds.includes(rem.id));
   const filteredLocal = (localList || []).filter(loc => !deletedIds.includes(loc.id));
 
-  if (filteredLocal.length === 0) return filteredRemote;
   if (filteredRemote.length === 0) return filteredLocal;
+  if (filteredLocal.length === 0) return filteredRemote;
 
-  const merged = [...filteredLocal];
-  const localMap = new Map(filteredLocal.map(g => [g.id, g]));
+  // Remote (Cloud) is the primary source of truth
+  const remoteMap = new Map(filteredRemote.map(g => [g.id, g]));
+  const merged = filteredRemote.map(rem => {
+    const local = filteredLocal.find(l => l.id === rem.id);
+    if (!local) return rem;
+    // Protect local version if currently being edited or has unsaved edits
+    const isCurrentlyOpen = currentReadingGuide && currentReadingGuide.id === local.id;
+    if (isCurrentlyOpen || local._unsaved) {
+      return local;
+    }
+    return {
+      ...rem,
+      pages: rem.pages || (rem.content_html ? rem.content_html.split('<!-- PAGE_BREAK -->') : local.pages)
+    };
+  });
 
-  filteredRemote.forEach(rem => {
-    const local = localMap.get(rem.id);
-    if (!local) {
-      // New guide from cloud that doesn't exist locally
-      merged.push(rem);
-    } else {
-      // Guide exists in both. Protect local if being edited or unsaved
-      const isCurrentlyOpen = currentReadingGuide && currentReadingGuide.id === local.id;
-      if (isCurrentlyOpen || local._unsaved) {
-        // Keep local version! Never overwrite!
-      } else {
-        // If remote has newer data and local has no pending edits
-        const idx = merged.findIndex(g => g.id === rem.id);
-        if (idx !== -1) {
-          merged[idx] = {
-            ...rem,
-            pages: rem.pages || (rem.content_html ? rem.content_html.split('<!-- PAGE_BREAK -->') : local.pages)
-          };
-        }
-      }
+  // Keep any brand new local drafts that haven't been pushed to cloud yet
+  filteredLocal.forEach(loc => {
+    if (!remoteMap.has(loc.id) && loc._unsaved) {
+      merged.unshift(loc);
     }
   });
 
@@ -810,9 +885,15 @@ async function loadExamGuides() {
     try {
       const { data, error } = await supabaseClient.from('exam_guides').select('*');
       if (!error && Array.isArray(data)) {
-        const normalizedRemote = data.map(normalizeExamGuide);
-        allExamGuides = mergeLocalAndRemoteGuides(allExamGuides, normalizedRemote);
-        saveLocalExamGuides(allExamGuides);
+        if (data.length === 0 && allExamGuides.length > 0) {
+          // Cloud table is empty! Auto-upload current local guides to Cloud so friends receive them!
+          await autoSeedExamGuidesToCloud(allExamGuides);
+        } else if (data.length > 0) {
+          // Cloud has data: Cloud IS the single source of truth for all users!
+          const normalizedRemote = data.map(normalizeExamGuide);
+          allExamGuides = mergeLocalAndRemoteGuides(allExamGuides, normalizedRemote);
+          saveLocalExamGuides(allExamGuides);
+        }
 
         if (badge) badge.textContent = allExamGuides.length;
         updateExamGuideFilterDropdowns();
@@ -3379,7 +3460,8 @@ function initEventListeners() {
           status: t.status || 'รอดำเนินการ',
           link: t.link || ''
         }));
-        await supabaseClient.from('tasks').upsert(tasksPayload);
+        const { error: tErr } = await supabaseClient.from('tasks').upsert(tasksPayload);
+        if (tErr) throw tErr;
       }
 
       // 2. Migrate exam guides
@@ -3399,7 +3481,8 @@ function initEventListeners() {
           pages: g.pages || [],
           created_at: g.created_at || new Date().toLocaleDateString('th-TH')
         }));
-        await supabaseClient.from('exam_guides').upsert(guidesPayload);
+        const { error: gErr } = await supabaseClient.from('exam_guides').upsert(guidesPayload);
+        if (gErr) throw gErr;
       }
 
       await loadData();
