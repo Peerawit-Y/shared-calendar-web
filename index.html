@@ -156,6 +156,45 @@
       color: #94a3b8 !important;
     }
 
+    /* Mobile & Touch Utilities */
+    .scrollbar-none::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-none {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Responsive FullCalendar Mobile */
+    @media (max-width: 640px) {
+      .fc .fc-toolbar {
+        flex-direction: column !important;
+        gap: 0.6rem !important;
+        align-items: stretch !important;
+      }
+      .fc .fc-toolbar-chunk {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+      }
+      .fc .fc-toolbar-title {
+        font-size: 1.05rem !important;
+        font-weight: 700 !important;
+      }
+      .fc .fc-button {
+        padding: 0.35rem 0.6rem !important;
+        font-size: 0.75rem !important;
+        border-radius: 0.5rem !important;
+      }
+      .fc .fc-view-harness {
+        min-height: 480px;
+      }
+      .fc-list-event-title, .fc-list-event-time {
+        font-size: 0.8rem !important;
+      }
+    }
+
     /* Print exclusively the Multi-Page Word Document */
     @media print {
       body * {
@@ -198,17 +237,18 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
 
   <!-- Navbar -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
-          <i data-lucide="calendar" class="w-5 h-5"></i>
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-3.5 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+      <!-- Left: Logo & Status -->
+      <div class="flex items-center space-x-2.5 sm:space-x-3">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100 shrink-0">
+          <i data-lucide="calendar" class="w-4 h-4 sm:w-5 sm:h-5"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-slate-900 leading-tight">ปฏิทิน & คลังแนวข้อสอบ</h1>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">ปฏิทิน & คลังแนวข้อสอบ</h1>
           <div class="flex items-center gap-2 mt-0.5">
             <!-- Live Online Users Presence Badge -->
-            <span id="badgeOnlineUsers" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="จำนวนคนที่กำลังเปิดใช้งานเว็บอยู่ในขณะนี้">
+            <span id="badgeOnlineUsers" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="จำนวนคนที่กำลังเปิดใช้งานเว็บอยู่ในขณะนี้">
               <span class="relative flex h-2 w-2">
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -219,40 +259,40 @@
         </div>
       </div>
 
-      <!-- Navigation Tabs -->
-      <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80">
-        <button id="navTabCalendar" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-sm transition">
-          <i data-lucide="calendar" class="w-4 h-4"></i>
-          <span>ปฏิทินงาน & สอบ</span>
-        </button>
-        <button id="navTabExamVault" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 transition">
-          <i data-lucide="book-open" class="w-4 h-4"></i>
-          <span>คลังแนวข้อสอบ & สรุป</span>
-          <span id="badgeGuideCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-100 text-indigo-700 font-bold">0</span>
-        </button>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="flex items-center space-x-2 sm:space-x-3">
+      <!-- Right: Action Buttons (Shown on top-right on mobile) -->
+      <div class="flex items-center space-x-1.5 sm:space-x-2.5 order-2 sm:order-3">
         <!-- Refresh button -->
-        <button id="btnRefresh" title="รีเฟรชข้อมูล" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200">
-          <i data-lucide="refresh-cw" class="w-5 h-5" id="refreshIcon"></i>
+        <button id="btnRefresh" title="รีเฟรชข้อมูล" class="p-1.5 sm:p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200">
+          <i data-lucide="refresh-cw" class="w-4 h-4 sm:w-5 sm:h-5" id="refreshIcon"></i>
         </button>
 
         <!-- Add Task button (Calendar tab) -->
-        <button id="btnOpenAddModal" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow transition-all space-x-1.5">
-          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+        <button id="btnOpenAddModal" class="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-medium rounded-lg shadow-xs hover:shadow transition-all space-x-1 sm:space-x-1.5">
+          <i data-lucide="plus-circle" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
           <span>เพิ่มงานใหม่</span>
         </button>
 
         <!-- Add Exam Guide buttons (Exam Vault tab) -->
-        <button id="btnNavbarCreateWordDoc" class="hidden inline-flex items-center px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all space-x-1.5">
-          <i data-lucide="file-plus" class="w-4 h-4"></i>
-          <span>+ สร้างกระดาษ Word</span>
+        <button id="btnNavbarCreateWordDoc" class="hidden inline-flex items-center px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-xs hover:shadow transition-all space-x-1 sm:space-x-1.5">
+          <i data-lucide="file-plus" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+          <span>+ สร้าง Word</span>
         </button>
-        <button id="btnOpenAddGuideModal" class="hidden inline-flex items-center px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 transition-all space-x-1.5">
-          <i data-lucide="layout-template" class="w-4 h-4 text-purple-600"></i>
+        <button id="btnOpenAddGuideModal" class="hidden inline-flex items-center px-2.5 sm:px-3 py-1.5 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium rounded-lg border border-slate-200 transition-all space-x-1 sm:space-x-1.5">
+          <i data-lucide="layout-template" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600"></i>
           <span class="hidden sm:inline">ฟอร์มแชร์</span>
+        </button>
+      </div>
+
+      <!-- Center: Navigation Tabs (Full width row on mobile, center on desktop) -->
+      <div class="w-full sm:w-auto order-3 sm:order-2 flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+        <button id="navTabCalendar" class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-xs transition">
+          <i data-lucide="calendar" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+          <span>ปฏิทินงาน & สอบ</span>
+        </button>
+        <button id="navTabExamVault" class="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-indigo-600 transition">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+          <span>คลังแนวข้อสอบ & สรุป</span>
+          <span id="badgeGuideCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-100 text-indigo-700 font-bold">0</span>
         </button>
       </div>
     </div>
@@ -420,12 +460,12 @@
         </div>
 
         <!-- Format Filter Pills -->
-        <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
-          <span class="text-slate-500 font-medium">รูปแบบเนื้อหา:</span>
-          <button data-type="ALL" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-purple-600 text-white shadow-xs">ทั้งหมด</button>
-          <button data-type="HYBRID" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700">✨ สรุปย่อ + PDF</button>
-          <button data-type="TEXT_ONLY" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700">📝 เขียนสรุปเอง</button>
-          <button data-type="PDF_ONLY" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700">📄 มีชีท PDF</button>
+        <div class="flex items-center gap-2 pt-1 text-xs overflow-x-auto whitespace-nowrap scrollbar-none pb-1">
+          <span class="text-slate-500 font-medium shrink-0">รูปแบบเนื้อหา:</span>
+          <button data-type="ALL" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-purple-600 text-white shadow-xs shrink-0">ทั้งหมด</button>
+          <button data-type="HYBRID" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700 shrink-0">✨ สรุปย่อ + PDF</button>
+          <button data-type="TEXT_ONLY" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700 shrink-0">📝 เขียนสรุปเอง</button>
+          <button data-type="PDF_ONLY" class="btn-guide-type-pill px-3 py-1 rounded-full font-medium transition bg-slate-100 hover:bg-slate-200 text-slate-700 shrink-0">📄 มีชีท PDF</button>
         </div>
       </div>
 
@@ -452,10 +492,10 @@
   </main>
 
   <!-- Modal: เพิ่มงานใหม่ -->
-  <div id="addModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
-      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+  <div id="addModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
+        <h3 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
           <i data-lucide="calendar-plus" class="w-5 h-5 text-indigo-600"></i>
           เพิ่มงาน / กำหนดสอบใหม่
         </h3>
@@ -465,7 +505,7 @@
       </div>
 
       <form id="addTaskForm" class="mt-4 space-y-4">
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-3 sm:gap-4">
           <!-- เทอม -->
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">เทอม / ปีการศึกษา *</label>
@@ -484,7 +524,7 @@
           <input type="text" id="inputTitle" required placeholder="เช่น สอบกลางภาค, รายงานบทที่ 1" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-3 sm:gap-4">
           <!-- ประเภท -->
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">ประเภท *</label>
@@ -531,8 +571,8 @@
   </div>
 
   <!-- Modal: ดูรายละเอียดงาน (Event Details) -->
-  <div id="detailModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+  <div id="detailModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
         <span id="detailBadge" class="px-2.5 py-1 text-xs rounded-full font-semibold">ประเภท</span>
         <button id="btnCloseDetailModal" class="text-slate-400 hover:text-slate-600 p-1">
@@ -588,10 +628,10 @@
   </div>
 
   <!-- Modal: แก้ไขงาน -->
-  <div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
-      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
-        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+  <div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
+        <h3 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
           <i data-lucide="edit-3" class="w-5 h-5 text-indigo-600"></i>
           แก้ไขงาน / กำหนดสอบ
         </h3>
@@ -678,36 +718,88 @@
   <div id="modalReadExamGuide" class="fixed inset-0 bg-slate-900 z-50 hidden flex flex-col w-screen h-screen overflow-hidden">
     
     <!-- Top Word Document Ribbon Toolbar (No Print) -->
-    <header class="bg-white border-b border-slate-200 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0 z-20 no-print shadow-xs">
+    <header class="bg-white border-b border-slate-200 px-2 sm:px-4 py-1.5 sm:py-2 flex flex-col gap-1.5 shrink-0 z-20 no-print shadow-xs">
       
-      <!-- Left: Sidebar Toggle, Doc Title & Auto-Save Status -->
-      <div class="flex items-center gap-2">
-        <button type="button" id="btnToggleWordSidebar" title="ซ่อน/แสดงแถบข้าง (Ctrl+\)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition border border-slate-200">
-          <i data-lucide="panel-left" class="w-4 h-4" id="iconWordSidebar"></i>
-        </button>
+      <!-- Row 1: Document Info & Primary Action Buttons -->
+      <div class="flex items-center justify-between gap-2 w-full">
+        <!-- Left: Sidebar Toggle, Doc Title & Auto-Save Status -->
+        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <button type="button" id="btnToggleWordSidebar" title="ซ่อน/แสดงแถบข้าง (Ctrl+\)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition border border-slate-200 shrink-0">
+            <i data-lucide="panel-left" class="w-4 h-4" id="iconWordSidebar"></i>
+          </button>
 
-        <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-2xs shrink-0">
-            <i data-lucide="file-text" class="w-4 h-4"></i>
-          </div>
-          <div>
-            <div class="flex items-center gap-1.5">
-              <input type="text" id="topWordDocTitleInput" class="text-xs sm:text-sm font-bold text-slate-900 bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-1 focus:ring-purple-400 rounded px-1.5 py-0.5 border border-transparent focus:border-purple-300 outline-none max-w-[160px] sm:max-w-xs transition" value="เอกสารแนวข้อสอบ Word">
-              <span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 font-semibold border border-purple-200">A4 DOC</span>
+          <div class="flex items-center gap-1.5 min-w-0">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-2xs shrink-0">
+              <i data-lucide="file-text" class="w-4 h-4"></i>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1 min-w-0">
+                <input type="text" id="topWordDocTitleInput" class="text-xs sm:text-sm font-bold text-slate-900 bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-1 focus:ring-purple-400 rounded px-1 py-0.5 border border-transparent focus:border-purple-300 outline-none w-28 sm:w-64 max-w-[180px] sm:max-w-xs transition truncate" value="เอกสารแนวข้อสอบ Word">
+                <span class="hidden sm:inline-block text-[10px] px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 font-semibold border border-purple-200 shrink-0">A4 DOC</span>
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- Right Action Tools -->
+        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          <!-- Save Button -->
+          <button type="button" id="btnSaveWordDoc" class="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-xs transition">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i>
+            <span id="saveWordDocText">บันทึก</span>
+          </button>
+
+          <!-- View Mode Switcher -->
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-medium">
+            <button id="btnViewModeA4" class="px-2 py-1 rounded-md font-semibold bg-white text-purple-700 shadow-2xs transition">📝 Word</button>
+            <button id="btnViewModePdf" class="px-2 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">📄 PDF</button>
+          </div>
+
+          <!-- Template Library Modal Button -->
+          <button type="button" id="btnOpenTemplatesModal" title="เลือกแม่แบบเอกสารสำเร็จรูป" class="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold rounded-lg border border-purple-200 transition">
+            <i data-lucide="layout-template" class="w-3.5 h-3.5"></i>
+            <span class="hidden lg:inline">แม่แบบ</span>
+          </button>
+
+          <!-- Toggle Page Width (A4 vs Full Width) -->
+          <button type="button" id="btnTogglePageWidth" title="สลับความกว้าง: หน้ากระดาษ A4 ปกติ / ขยายเต็มจอ" class="hidden md:inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-slate-600" id="iconPageWidth"></i>
+            <span id="labelPageWidth" class="hidden md:inline">เต็มจอ</span>
+          </button>
+
+          <!-- Edit Metadata Modal Button -->
+          <button id="btnEditCurrentGuide" title="แก้ไขข้อมูลวิชา/เทอม/ลิงก์" class="inline-flex items-center gap-1 p-1.5 sm:px-2 sm:py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
+            <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-600"></i>
+          </button>
+
+          <!-- Print Button -->
+          <button id="btnPrintA4Sheet" title="พิมพ์กระดาษ A4 หรือบันทึกเป็น PDF" class="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
+            <i data-lucide="printer" class="w-3.5 h-3.5 text-slate-600"></i>
+            <span class="hidden md:inline">พิมพ์ A4</span>
+          </button>
+
+          <!-- Copy to LINE button -->
+          <button id="btnCopyGuideToLine" title="คัดลอกสรุปไปลง LINE กลุ่ม" class="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span class="hidden md:inline">LINE</span>
+          </button>
+
+          <!-- Close button -->
+          <button id="btnCloseReadGuide" title="ปิดโหมดเต็มจอ" class="p-1 sm:p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition shrink-0">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
       </div>
 
-      <!-- Center: Full Microsoft Word Ribbon Toolbar -->
-      <div class="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200 overflow-x-auto max-w-full text-slate-700">
+      <!-- Row 2: Full Microsoft Word Ribbon Toolbar (Horizontally Scrollable) -->
+      <div class="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200 overflow-x-auto whitespace-nowrap scrollbar-none max-w-full text-slate-700 py-1">
         <!-- Undo / Redo -->
-        <button type="button" id="btnWordUndo" title="เลิกทำ (Ctrl+Z)" class="p-1.5 hover:bg-white rounded-lg hover:text-slate-900 transition shadow-2xs"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i></button>
-        <button type="button" id="btnWordRedo" title="ทำซ้ำ (Ctrl+Y)" class="p-1.5 hover:bg-white rounded-lg hover:text-slate-900 transition shadow-2xs"><i data-lucide="redo-2" class="w-3.5 h-3.5"></i></button>
-        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+        <button type="button" id="btnWordUndo" title="เลิกทำ (Ctrl+Z)" class="p-1.5 hover:bg-white rounded-lg hover:text-slate-900 transition shadow-2xs shrink-0"><i data-lucide="undo-2" class="w-3.5 h-3.5"></i></button>
+        <button type="button" id="btnWordRedo" title="ทำซ้ำ (Ctrl+Y)" class="p-1.5 hover:bg-white rounded-lg hover:text-slate-900 transition shadow-2xs shrink-0"><i data-lucide="redo-2" class="w-3.5 h-3.5"></i></button>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0"></span>
 
         <!-- Font Size Selector -->
-        <select id="selectWordFontSize" title="ขนาดตัวอักษร" class="bg-transparent hover:bg-white text-xs font-medium px-1.5 py-1 rounded-lg border border-transparent hover:border-slate-200 outline-none cursor-pointer">
+        <select id="selectWordFontSize" title="ขนาดตัวอักษร" class="bg-transparent hover:bg-white text-xs font-medium px-1.5 py-1 rounded-lg border border-transparent hover:border-slate-200 outline-none cursor-pointer shrink-0">
           <option value="3">ปกติ (16px)</option>
           <option value="2">เล็ก (14px)</option>
           <option value="4">กลาง (18px)</option>
@@ -716,122 +808,75 @@
         </select>
 
         <!-- Headings H1, H2, ¶ -->
-        <button type="button" id="btnWordHeading1" title="หัวข้อใหญ่ (Heading 1)" class="px-2 py-1 hover:bg-white rounded-lg text-slate-800 font-bold text-xs transition shadow-2xs">H1</button>
-        <button type="button" id="btnWordHeading2" title="หัวข้อย่อย (Heading 2)" class="px-2 py-1 hover:bg-white rounded-lg text-slate-800 font-bold text-xs transition shadow-2xs">H2</button>
-        <button type="button" id="btnWordNormal" title="ข้อความปกติ (Paragraph)" class="px-2 py-1 hover:bg-white rounded-lg text-slate-700 text-xs transition shadow-2xs">¶</button>
-        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+        <button type="button" id="btnWordHeading1" title="หัวข้อใหญ่ (Heading 1)" class="px-2 py-1 hover:bg-white rounded-lg text-slate-800 font-bold text-xs transition shadow-2xs shrink-0">H1</button>
+        <button type="button" id="btnWordHeading2" title="หัวข้อย่อย (Heading 2)" class="px-2 py-1 hover:bg-white rounded-lg text-slate-800 font-bold text-xs transition shadow-2xs shrink-0">H2</button>
+        <button type="button" id="btnWordNormal" title="ข้อความปกติ (Paragraph)" class="px-2 py-1 hover:bg-white rounded-lg text-slate-700 text-xs transition shadow-2xs shrink-0">¶</button>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0"></span>
 
         <!-- B, I, U, S -->
-        <button type="button" id="btnWordBold" title="ตัวหนา (Ctrl+B)" class="p-1.5 hover:bg-white rounded-lg font-bold text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs">B</button>
-        <button type="button" id="btnWordItalic" title="ตัวเอียง (Ctrl+I)" class="p-1.5 hover:bg-white rounded-lg italic font-serif text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs">I</button>
-        <button type="button" id="btnWordUnderline" title="ขีดเส้นใต้ (Ctrl+U)" class="p-1.5 hover:bg-white rounded-lg underline text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs">U</button>
-        <button type="button" id="btnWordStrike" title="ขีดฆ่า" class="p-1.5 hover:bg-white rounded-lg line-through text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs">S</button>
-        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+        <button type="button" id="btnWordBold" title="ตัวหนา (Ctrl+B)" class="p-1.5 hover:bg-white rounded-lg font-bold text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0">B</button>
+        <button type="button" id="btnWordItalic" title="ตัวเอียง (Ctrl+I)" class="p-1.5 hover:bg-white rounded-lg italic font-serif text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0">I</button>
+        <button type="button" id="btnWordUnderline" title="ขีดเส้นใต้ (Ctrl+U)" class="p-1.5 hover:bg-white rounded-lg underline text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0">U</button>
+        <button type="button" id="btnWordStrike" title="ขีดฆ่า" class="p-1.5 hover:bg-white rounded-lg line-through text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0">S</button>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0"></span>
 
         <!-- Text Alignment -->
-        <button type="button" id="btnWordAlignLeft" title="จัดชิดซ้าย" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs"><i data-lucide="align-left" class="w-3.5 h-3.5"></i></button>
-        <button type="button" id="btnWordAlignCenter" title="จัดกึ่งกลาง" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs"><i data-lucide="align-center" class="w-3.5 h-3.5"></i></button>
-        <button type="button" id="btnWordAlignRight" title="จัดชิดขวา" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs"><i data-lucide="align-right" class="w-3.5 h-3.5"></i></button>
-        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+        <button type="button" id="btnWordAlignLeft" title="จัดชิดซ้าย" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0"><i data-lucide="align-left" class="w-3.5 h-3.5"></i></button>
+        <button type="button" id="btnWordAlignCenter" title="จัดกึ่งกลาง" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0"><i data-lucide="align-center" class="w-3.5 h-3.5"></i></button>
+        <button type="button" id="btnWordAlignRight" title="จัดชิดขวา" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0"><i data-lucide="align-right" class="w-3.5 h-3.5"></i></button>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0"></span>
 
         <!-- Highlighter Colors -->
-        <div class="flex items-center gap-1 px-1">
+        <div class="flex items-center gap-1 px-1 shrink-0">
           <button type="button" class="btn-word-hl w-4 h-4 rounded-full bg-yellow-300 border border-yellow-400 hover:scale-125 transition shadow-2xs" data-color="#fef08a" title="ไฮไลต์เหลือง"></button>
           <button type="button" class="btn-word-hl w-4 h-4 rounded-full bg-emerald-300 border border-emerald-400 hover:scale-125 transition shadow-2xs" data-color="#bbf7d0" title="ไฮไลต์เขียว"></button>
           <button type="button" class="btn-word-hl w-4 h-4 rounded-full bg-cyan-300 border border-cyan-400 hover:scale-125 transition shadow-2xs" data-color="#a5f3fc" title="ไฮไลต์ฟ้า"></button>
           <button type="button" class="btn-word-hl w-4 h-4 rounded-full bg-pink-300 border border-pink-400 hover:scale-125 transition shadow-2xs" data-color="#fbcfe8" title="ไฮไลต์ชมพู"></button>
         </div>
-        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0"></span>
 
         <!-- Lists & Checklist -->
-        <button type="button" id="btnWordBullet" title="ใส่หัวข้อย่อย (Bullet)" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs"><i data-lucide="list" class="w-3.5 h-3.5"></i></button>
-        <button type="button" id="btnWordNumbered" title="ใส่เลขข้อ (Numbered)" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs"><i data-lucide="list-ordered" class="w-3.5 h-3.5"></i></button>
-        <button type="button" id="btnWordChecklist" title="ใส่ช่องเช็คลิสต์ [ ]" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs"><i data-lucide="check-square" class="w-3.5 h-3.5"></i></button>
-        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+        <button type="button" id="btnWordBullet" title="ใส่หัวข้อย่อย (Bullet)" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0"><i data-lucide="list" class="w-3.5 h-3.5"></i></button>
+        <button type="button" id="btnWordNumbered" title="ใส่เลขข้อ (Numbered)" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0"><i data-lucide="list-ordered" class="w-3.5 h-3.5"></i></button>
+        <button type="button" id="btnWordChecklist" title="ใส่ช่องเช็คลิสต์ [ ]" class="p-1.5 hover:bg-white rounded-lg w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0"><i data-lucide="check-square" class="w-3.5 h-3.5"></i></button>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0"></span>
 
         <!-- Insert Tools -->
-        <button type="button" id="btnInsertPage" title="เพิ่มหน้ากระดาษใหม่ (Page Break)" class="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-purple-50 text-purple-700 rounded-lg text-xs font-semibold border border-purple-200 transition shadow-2xs">
+        <button type="button" id="btnInsertPage" title="เพิ่มหน้ากระดาษใหม่ (Page Break)" class="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-purple-50 text-purple-700 rounded-lg text-xs font-semibold border border-purple-200 transition shadow-2xs shrink-0">
           <i data-lucide="plus" class="w-3.5 h-3.5"></i>
           <span>หน้าใหม่</span>
         </button>
-        <button type="button" id="btnInsertSticky" title="แทรกกล่องเก็งข้อสอบ" class="inline-flex items-center gap-1 px-2 py-1 hover:bg-white text-amber-800 rounded-lg text-xs font-medium transition shadow-2xs">
+        <button type="button" id="btnInsertSticky" title="แทรกกล่องเก็งข้อสอบ" class="inline-flex items-center gap-1 px-2 py-1 hover:bg-white text-amber-800 rounded-lg text-xs font-medium transition shadow-2xs shrink-0">
           <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-600"></i>
-          <span class="hidden 2xl:inline">เก็งข้อสอบ</span>
+          <span>เก็งข้อสอบ</span>
         </button>
-        <button type="button" id="btnInsertTable" title="แทรกตารางสรุป" class="inline-flex items-center gap-1 px-2 py-1 hover:bg-white text-slate-700 rounded-lg text-xs font-medium transition shadow-2xs">
+        <button type="button" id="btnInsertTable" title="แทรกตารางสรุป" class="inline-flex items-center gap-1 px-2 py-1 hover:bg-white text-slate-700 rounded-lg text-xs font-medium transition shadow-2xs shrink-0">
           <i data-lucide="table" class="w-3.5 h-3.5 text-slate-600"></i>
-          <span class="hidden 2xl:inline">ตาราง</span>
+          <span>ตาราง</span>
         </button>
-        <button type="button" id="btnInsertDivider" title="แทรกเส้นคั่น" class="p-1.5 hover:bg-white rounded-lg text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs">
+        <button type="button" id="btnInsertDivider" title="แทรกเส้นคั่น" class="p-1.5 hover:bg-white rounded-lg text-xs w-7 h-7 flex items-center justify-center transition shadow-2xs shrink-0">
           <i data-lucide="minus" class="w-3.5 h-3.5"></i>
         </button>
-        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+        <span class="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0"></span>
 
         <!-- Paper Theme Selector -->
-        <select id="selectWordTheme" title="โทนกระดาษ" class="bg-transparent hover:bg-white text-xs font-medium px-2 py-1 rounded-lg border border-transparent hover:border-slate-200 outline-none cursor-pointer">
+        <select id="selectWordTheme" title="โทนกระดาษ" class="bg-transparent hover:bg-white text-xs font-medium px-2 py-1 rounded-lg border border-transparent hover:border-slate-200 outline-none cursor-pointer shrink-0">
           <option value="white">⚪ ขาวมาตรฐาน</option>
           <option value="warm">📜 ถนอมสายตา</option>
           <option value="ruled">📏 มีเส้นบรรทัด</option>
           <option value="dark">🌙 โหมดมืด</option>
         </select>
-        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
-
-        <!-- Save Button -->
-        <button type="button" id="btnSaveWordDoc" class="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-xs transition">
-          <i data-lucide="save" class="w-3.5 h-3.5"></i>
-          <span id="saveWordDocText">บันทึก</span>
-        </button>
-      </div>
-
-      <!-- Right Action Tools -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <!-- Template Library Modal Button -->
-        <button type="button" id="btnOpenTemplatesModal" title="เลือกแม่แบบเอกสารสำเร็จรูป" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold rounded-lg border border-purple-200 transition">
-          <i data-lucide="layout-template" class="w-3.5 h-3.5"></i>
-          <span class="hidden lg:inline">แม่แบบ</span>
-        </button>
-
-        <!-- Toggle Page Width (A4 vs Full Width) -->
-        <button type="button" id="btnTogglePageWidth" title="สลับความกว้าง: หน้ากระดาษ A4 ปกติ / ขยายเต็มจอ" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
-          <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-slate-600" id="iconPageWidth"></i>
-          <span id="labelPageWidth" class="hidden md:inline">เต็มจอ</span>
-        </button>
-
-        <!-- View Mode Switcher -->
-        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-medium">
-          <button id="btnViewModeA4" class="px-2.5 py-1 rounded-md font-semibold bg-white text-purple-700 shadow-2xs transition">📝 Word</button>
-          <button id="btnViewModePdf" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">📄 PDF</button>
-        </div>
-
-        <!-- Edit Metadata Modal Button -->
-        <button id="btnEditCurrentGuide" title="แก้ไขข้อมูลวิชา/เทอม/ลิงก์" class="inline-flex items-center gap-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
-          <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-600"></i>
-        </button>
-
-        <!-- Print Button -->
-        <button id="btnPrintA4Sheet" title="พิมพ์กระดาษ A4 หรือบันทึกเป็น PDF" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition border border-slate-200">
-          <i data-lucide="printer" class="w-3.5 h-3.5 text-slate-600"></i>
-          <span class="hidden md:inline">พิมพ์ A4</span>
-        </button>
-
-        <!-- Copy to LINE button -->
-        <button id="btnCopyGuideToLine" title="คัดลอกสรุปไปลง LINE กลุ่ม" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 transition">
-          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-          <span class="hidden md:inline">LINE</span>
-        </button>
-
-        <!-- Close button -->
-        <button id="btnCloseReadGuide" title="ปิดโหมดเต็มจอ" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
       </div>
     </header>
 
-    <!-- Main Workspace (Horizontal Split: 25% Left Sidebar / 75% Right Word Canvas) -->
+    <!-- Main Workspace (Horizontal Split: Left Sidebar Drawer / Right Word Canvas) -->
     <div class="flex-1 flex overflow-hidden w-full relative">
       
-      <!-- LEFT PANEL (25% Width - Selection Sidebar) -->
-      <aside id="wordSidebarAside" class="w-full md:w-1/4 lg:w-1/4 min-w-[270px] max-w-[360px] bg-slate-900 border-r border-slate-800 flex flex-col h-full z-10 no-print shrink-0 transition-all duration-300">
+      <!-- Mobile Backdrop for Sidebar Drawer -->
+      <div id="wordSidebarBackdrop" class="fixed inset-0 bg-slate-950/60 z-30 md:hidden hidden transition-opacity"></div>
+
+      <!-- LEFT PANEL (Selection Sidebar Drawer) -->
+      <aside id="wordSidebarAside" class="fixed md:relative inset-y-0 left-0 w-4/5 sm:w-80 md:w-1/4 max-w-[360px] bg-slate-900 border-r border-slate-800 flex flex-col h-full z-40 md:z-10 no-print shrink-0 transition-all duration-300 shadow-2xl md:shadow-none">
         
         <!-- Sidebar Header & Create Blank Doc Button -->
         <div class="p-3.5 border-b border-slate-800 space-y-3">
@@ -872,30 +917,30 @@
         </div>
       </aside>
 
-      <!-- RIGHT PANEL (75% Width - Microsoft Word Multi-Page Canvas) -->
-      <main id="wordWorkspaceMain" class="flex-1 bg-slate-200/90 overflow-y-auto p-4 sm:p-8 flex flex-col items-center justify-start relative">
+      <!-- RIGHT PANEL (Microsoft Word Multi-Page Canvas) -->
+      <main id="wordWorkspaceMain" class="flex-1 bg-slate-200/90 overflow-y-auto p-2 sm:p-6 md:p-8 flex flex-col items-center justify-start relative">
         
         <!-- VIEW 1: MICROSOFT WORD LIVE MULTI-PAGE DOCUMENT WORKSPACE -->
         <div id="viewA4SheetContainer" class="w-full flex flex-col items-center pb-20">
           
           <!-- Stack of Word Pages -->
-          <div id="wordPagesContainer" class="w-full flex flex-col items-center space-y-8">
+          <div id="wordPagesContainer" class="w-full flex flex-col items-center space-y-4 sm:space-y-8">
             <!-- Dynamically populated Word pages -->
           </div>
 
           <!-- Bottom Action Bar (Add Page, Templates) -->
-          <div class="mt-8 flex flex-wrap items-center justify-center gap-3 no-print">
-            <button type="button" id="btnAddPageBottom" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-800 font-semibold rounded-xl shadow-md border border-slate-300 text-sm transition hover:border-purple-300 hover:shadow-lg">
+          <div class="mt-6 sm:mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3 no-print">
+            <button type="button" id="btnAddPageBottom" class="inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-slate-50 text-slate-800 font-semibold rounded-xl shadow-md border border-slate-300 text-xs sm:text-sm transition hover:border-purple-300 hover:shadow-lg">
               <i data-lucide="plus-circle" class="w-4 h-4 text-purple-600"></i>
-              <span>+ เพิ่มหน้ากระดาษใหม่ (Add Page)</span>
+              <span>+ เพิ่มหน้ากระดาษใหม่</span>
             </button>
-            <button type="button" id="btnQuickStickyBottom" class="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 font-medium rounded-xl border border-amber-300 text-sm transition shadow-xs">
+            <button type="button" id="btnQuickStickyBottom" class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 font-medium rounded-xl border border-amber-300 text-xs sm:text-sm transition shadow-xs">
               <i data-lucide="sparkles" class="w-4 h-4 text-amber-600"></i>
-              <span>+ แทรกกล่องเก็งข้อสอบ</span>
+              <span>+ เก็งข้อสอบ</span>
             </button>
-            <button type="button" id="btnQuickTableBottom" class="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 text-sm transition shadow-xs">
+            <button type="button" id="btnQuickTableBottom" class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded-xl border border-slate-300 text-xs sm:text-sm transition shadow-xs">
               <i data-lucide="table" class="w-4 h-4 text-slate-600"></i>
-              <span>+ แทรกตารางสรุป</span>
+              <span>+ ตาราง</span>
             </button>
           </div>
 
@@ -904,19 +949,19 @@
         <!-- VIEW 2: IN-APP PDF VIEWER (When viewing attached PDF) -->
         <div id="viewPdfContainer" class="hidden w-full max-w-5xl pb-12">
           <div class="bg-white rounded-2xl border border-slate-300 shadow-xl overflow-hidden">
-            <div class="px-5 py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs">
-              <div class="flex items-center gap-2">
-                <i data-lucide="file-text" class="w-4 h-4 text-purple-600"></i>
-                <span class="font-bold text-slate-800">เอกสารชีทสรุป PDF (เปิดอ่านในเว็บ)</span>
+            <div class="px-4 sm:px-5 py-2.5 sm:py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2 min-w-0">
+                <i data-lucide="file-text" class="w-4 h-4 text-purple-600 shrink-0"></i>
+                <span class="font-bold text-slate-800 truncate">เอกสารชีทสรุป PDF (เปิดอ่านในเว็บ)</span>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 shrink-0">
                 <a id="readGuidePdfExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1">
-                  <span>เปิดลิงก์ต้นฉบับ</span>
+                  <span>เปิดลิงก์</span>
                   <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                 </a>
               </div>
             </div>
-            <div class="w-full h-[calc(100vh-140px)] min-h-[580px] bg-slate-200 relative">
+            <div class="w-full h-[calc(100vh-130px)] min-h-[460px] bg-slate-200 relative">
               <iframe id="readGuidePdfIframe" src="" class="w-full h-full border-0" allow="autoplay"></iframe>
             </div>
           </div>
@@ -927,25 +972,25 @@
     </div>
 
     <!-- Word Document Live Status Bar (Bottom) -->
-    <footer id="wordStatusBar" class="bg-white border-t border-slate-200 px-4 py-1.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 shrink-0 z-20 no-print">
-      <div class="flex items-center gap-4">
+    <footer id="wordStatusBar" class="bg-white border-t border-slate-200 px-3 sm:px-4 py-1.5 flex items-center justify-between gap-3 text-xs text-slate-500 shrink-0 z-20 no-print overflow-x-auto whitespace-nowrap scrollbar-none">
+      <div class="flex items-center gap-3 sm:gap-4 shrink-0">
         <span>📄 <span id="statusPageCount">1 หน้า</span></span>
         <span>📝 <span id="statusWordCount">0 คำ</span></span>
-        <span>🔤 <span id="statusCharCount">0 ตัวอักษร</span></span>
+        <span class="hidden sm:inline">🔤 <span id="statusCharCount">0 ตัวอักษร</span></span>
         <span>⏱️ <span id="statusReadTime">อ่าน ~1 นาที</span></span>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
         <span id="saveWordDocStatus" class="text-emerald-600 font-semibold flex items-center gap-1 hidden">
           <i data-lucide="check" class="w-3.5 h-3.5"></i>
           <span>บันทึกแล้ว</span>
         </span>
         <span id="statusSyncIndicator" class="text-slate-400 flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span>ซิงค์อัตโนมัติ</span>
+          <span>ซิงค์</span>
         </span>
-        <button type="button" id="btnDuplicateDoc" class="text-slate-600 hover:text-purple-600 font-medium text-[11px] transition">📑 ทำซ้ำเอกสาร</button>
+        <button type="button" id="btnDuplicateDoc" class="text-slate-600 hover:text-purple-600 font-medium text-[11px] transition">📑 ทำซ้ำ</button>
         <button type="button" id="btnBackupDocJson" class="text-slate-600 hover:text-emerald-600 font-medium text-[11px] transition">📥 สำรอง JSON</button>
-        <button type="button" id="btnDownloadDocText" class="text-slate-600 hover:text-indigo-600 font-medium text-[11px] transition">💾 ดาวน์โหลดข้อความ</button>
+        <button type="button" id="btnDownloadDocText" class="hidden sm:inline text-slate-600 hover:text-indigo-600 font-medium text-[11px] transition">💾 ดาวน์โหลดข้อความ</button>
       </div>
     </footer>
 

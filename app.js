@@ -624,7 +624,11 @@ function initCalendar() {
     nextDayThreshold: '09:00:00',
     defaultTimedEventDuration: '00:00:00',
     forceEventDuration: false,
-    headerToolbar: {
+    headerToolbar: window.innerWidth < 640 ? {
+      left: 'prev,next',
+      center: 'title',
+      right: 'today,listMonth'
+    } : {
       left: 'prev,next today',
       center: 'title',
       right: 'dayGridMonth,timeGridWeek,listMonth'
@@ -1364,6 +1368,9 @@ function renderSidebarGuideList() {
 
     btn.addEventListener('click', () => {
       openReadGuideModal(g);
+      if (window.innerWidth < 768) {
+        toggleWordSidebar(false);
+      }
     });
 
     container.appendChild(btn);
@@ -1388,18 +1395,28 @@ function applyWordTheme(theme) {
   }
 }
 
-// Toggle Distraction-free Sidebar
-function toggleWordSidebar() {
+// Toggle Distraction-free Sidebar (With mobile drawer support)
+function toggleWordSidebar(forceState = null) {
   const sidebar = document.getElementById('wordSidebarAside');
   const icon = document.getElementById('iconWordSidebar');
+  const backdrop = document.getElementById('wordSidebarBackdrop');
   if (!sidebar) return;
 
-  isWordSidebarVisible = !isWordSidebarVisible;
+  if (forceState !== null) {
+    isWordSidebarVisible = Boolean(forceState);
+  } else {
+    isWordSidebarVisible = !isWordSidebarVisible;
+  }
+
   if (isWordSidebarVisible) {
     sidebar.classList.remove('hidden');
+    if (window.innerWidth < 768 && backdrop) {
+      backdrop.classList.remove('hidden');
+    }
     if (icon) icon.setAttribute('data-lucide', 'panel-left');
   } else {
     sidebar.classList.add('hidden');
+    if (backdrop) backdrop.classList.add('hidden');
     if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
   }
   lucide.createIcons();
@@ -1833,7 +1850,7 @@ function createNewBlankWordDocument() {
 // Build a Word Page Element (Multi-Page A4)
 function createWordPageElement(pageIndex, totalPages, initialContent = '', isFirstPage = false, guide = null) {
   const pageDiv = document.createElement('div');
-  pageDiv.className = `word-page word-theme-${currentWordTheme} bg-white shadow-2xl border border-slate-300 ${isWordPageWide ? 'max-w-7xl' : 'max-w-5xl'} w-full min-h-[1100px] p-8 sm:p-14 text-slate-900 rounded-xs relative transition-all flex flex-col mb-8`;
+  pageDiv.className = `word-page word-theme-${currentWordTheme} bg-white shadow-2xl border border-slate-300 ${isWordPageWide ? 'max-w-7xl' : 'max-w-5xl'} w-full min-h-[450px] sm:min-h-[1000px] p-4 sm:p-10 md:p-14 text-slate-900 rounded-xs relative transition-all flex flex-col mb-4 sm:mb-8`;
   pageDiv.dataset.pageIndex = pageIndex;
 
   const subject = guide?.subject || 'วิชาใหม่';
@@ -1843,14 +1860,14 @@ function createWordPageElement(pageIndex, totalPages, initialContent = '', isFir
 
   pageDiv.innerHTML = `
     <!-- Word Header Ruler / Meta Bar -->
-    <div class="border-b-2 border-slate-900 pb-3 mb-6 flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-600 no-print">
-      <div class="flex items-center gap-2 flex-wrap">
-        <span contenteditable="true" class="page-subject-badge px-3 py-1 rounded bg-slate-900 text-white font-bold uppercase tracking-wider text-xs outline-none focus:ring-2 focus:ring-purple-400" title="คลิกเพื่อแก้ไขชื่อวิชา">${subject}</span>
-        <span contenteditable="true" class="page-term font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-purple-400 px-1 rounded" title="คลิกเพื่อแก้ไขเทอม">เทอม ${term}</span>
+    <div class="border-b-2 border-slate-900 pb-2 sm:pb-3 mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-600 no-print">
+      <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+        <span contenteditable="true" class="page-subject-badge px-2.5 py-0.5 sm:px-3 sm:py-1 rounded bg-slate-900 text-white font-bold uppercase tracking-wider text-[11px] sm:text-xs outline-none focus:ring-2 focus:ring-purple-400" title="คลิกเพื่อแก้ไขชื่อวิชา">${subject}</span>
+        <span contenteditable="true" class="page-term font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-purple-400 px-1 rounded text-[11px] sm:text-xs" title="คลิกเพื่อแก้ไขเทอม">เทอม ${term}</span>
         <span>•</span>
-        <span contenteditable="true" class="page-exam-type font-semibold text-purple-700 outline-none focus:ring-1 focus:ring-purple-400 px-1 rounded" title="คลิกเพื่อแก้ไขประเภท">${examType.toUpperCase()}</span>
+        <span contenteditable="true" class="page-exam-type font-semibold text-purple-700 outline-none focus:ring-1 focus:ring-purple-400 px-1 rounded text-[11px] sm:text-xs" title="คลิกเพื่อแก้ไขประเภท">${examType.toUpperCase()}</span>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3">
         <span class="text-slate-400 text-xs font-sans">หน้า <span class="page-num-indicator">${pageIndex + 1}</span> จาก <span class="page-total-indicator">${totalPages}</span></span>
         ${pageIndex > 0 ? `
           <button type="button" class="btn-delete-this-page text-slate-400 hover:text-rose-600 transition p-1 rounded hover:bg-rose-50" title="ลบหน้ากระดาษนี้">
@@ -1862,18 +1879,18 @@ function createWordPageElement(pageIndex, totalPages, initialContent = '', isFir
 
     ${isFirstPage ? `
       <!-- Editable Document Title on Page 1 -->
-      <div contenteditable="true" class="word-doc-title outline-none focus:bg-purple-50/40 focus:ring-2 focus:ring-purple-300 rounded px-2 py-1 text-2xl sm:text-3xl font-black text-slate-900 leading-tight transition cursor-text mb-6" placeholder="พิมพ์ชื่อแนวข้อสอบ / เอกสารที่นี่...">
+      <div contenteditable="true" class="word-doc-title outline-none focus:bg-purple-50/40 focus:ring-2 focus:ring-purple-300 rounded px-2 py-1 text-xl sm:text-3xl font-black text-slate-900 leading-tight transition cursor-text mb-4 sm:mb-6" placeholder="พิมพ์ชื่อแนวข้อสอบ / เอกสารที่นี่...">
         ${docTitle}
       </div>
     ` : ''}
 
     <!-- Free-form Word Page Body Content -->
-    <div contenteditable="true" class="word-page-body flex-1 outline-none text-slate-800 text-sm sm:text-base leading-relaxed space-y-4 focus:ring-0 min-h-[750px] cursor-text" placeholder="พิมพ์เนื้อหา สรุปบทเรียน หรือบันทึกข้อสอบในหน้านี้...">
+    <div contenteditable="true" class="word-page-body flex-1 outline-none text-slate-800 text-sm sm:text-base leading-relaxed space-y-4 focus:ring-0 min-h-[320px] sm:min-h-[700px] cursor-text" placeholder="พิมพ์เนื้อหา สรุปบทเรียน หรือบันทึกข้อสอบในหน้านี้...">
       ${initialContent}
     </div>
 
     <!-- Word Page Footer -->
-    <div class="border-t border-slate-200 mt-10 pt-3 flex flex-wrap items-center justify-between text-xs text-slate-400 font-mono">
+    <div class="border-t border-slate-200 mt-6 sm:mt-10 pt-2.5 sm:pt-3 flex flex-wrap items-center justify-between text-[10px] sm:text-xs text-slate-400 font-mono">
       <span>🎓 A4 EXAM CHEAT SHEET • SHARED ACADEMIC HUB</span>
       <span>หน้า ${pageIndex + 1}</span>
     </div>
@@ -2429,8 +2446,15 @@ function openReadGuideModal(guide) {
     setA4ViewMode('a4');
   }
 
-  // Render the left 25% sidebar so the active guide is highlighted
+  // Render the left sidebar so the active guide is highlighted
   renderSidebarGuideList();
+
+  // Mobile Support: On phones and tablets (< 768px), start with sidebar hidden so doc/pdf is 100% visible
+  if (window.innerWidth < 768) {
+    toggleWordSidebar(false);
+  } else {
+    toggleWordSidebar(true);
+  }
 
   document.getElementById('modalReadExamGuide').classList.remove('hidden');
   lucide.createIcons();
@@ -2993,8 +3017,9 @@ function initEventListeners() {
     applyWordTheme(e.target.value);
   });
 
-  // Sidebar Toggle (Distraction Free View)
-  document.getElementById('btnToggleWordSidebar')?.addEventListener('click', toggleWordSidebar);
+  // Sidebar Toggle (Distraction Free View & Mobile Drawer)
+  document.getElementById('btnToggleWordSidebar')?.addEventListener('click', () => toggleWordSidebar());
+  document.getElementById('wordSidebarBackdrop')?.addEventListener('click', () => toggleWordSidebar(false));
 
   // Template Library Modal open/close & selection
   const modalTemplatePicker = document.getElementById('modalTemplatePicker');
