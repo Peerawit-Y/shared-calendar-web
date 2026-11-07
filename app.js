@@ -22,47 +22,14 @@ function initSupabase() {
   if (url && key && window.supabase?.createClient) {
     try {
       supabaseClient = window.supabase.createClient(url, key);
-      updateDbStatusBadge(true, 'Supabase (กำลังเชื่อมต่อ...)');
       setupSupabaseRealtime();
       return true;
     } catch (e) {
       console.warn('Supabase initialization failed:', e);
-      updateDbStatusBadge(false, 'เกิดข้อผิดพลาดในการเริ่มระบบ', 'error');
     }
-  } else {
-    const missing = [];
-    if (!url) missing.push('URL');
-    if (!key) missing.push('Anon Key');
-    const msg = missing.length > 0 ? `ยังไม่พบ ${missing.join(', ')} (คลิกตั้งค่า)` : 'ออฟไลน์ (คลิกตั้งค่า)';
-    updateDbStatusBadge(false, msg, 'warning');
   }
   supabaseClient = null;
   return false;
-}
-
-// Update DB Connection Status Badge in Navbar
-function updateDbStatusBadge(isConnected, label, statusType = 'normal') {
-  const dot = document.getElementById('badgeDbStatusDot');
-  const text = document.getElementById('labelDbStatus');
-  if (dot) {
-    if (isConnected) {
-      dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-    } else if (statusType === 'warning') {
-      dot.className = 'w-2 h-2 rounded-full bg-amber-500';
-    } else {
-      dot.className = 'w-2 h-2 rounded-full bg-rose-500';
-    }
-  }
-  if (text) {
-    text.textContent = label || (isConnected ? '⚡ Supabase ออนไลน์' : 'ออฟไลน์ (คลิกตั้งค่า)');
-    if (isConnected) {
-      text.className = 'text-emerald-600 font-semibold';
-    } else if (statusType === 'warning') {
-      text.className = 'text-amber-600 font-medium';
-    } else {
-      text.className = 'text-rose-500 font-medium';
-    }
-  }
 }
 
 // Unique session ID for realtime presence tracking
@@ -777,9 +744,7 @@ async function loadData() {
       const { data, error } = await supabaseClient.from('tasks').select('*');
       if (error) {
         console.warn('Supabase tasks load error:', error);
-        updateDbStatusBadge(false, error.message?.includes('does not exist') ? 'ยังไม่ได้รัน SQL Schema' : 'เชื่อมต่อ Supabase ล้มเหลว', 'error');
       } else if (Array.isArray(data)) {
-        updateDbStatusBadge(true, '⚡ Supabase ออนไลน์');
         if (data.length === 0 && allTasks.length > 0) {
           await autoSeedTasksToCloud(allTasks);
         } else if (data.length > 0) {
@@ -792,7 +757,6 @@ async function loadData() {
       }
     } catch (e) {
       console.warn('Supabase tasks load error:', e);
-      updateDbStatusBadge(false, 'เชื่อมต่อ Supabase ล้มเหลว', 'error');
     }
   }
 
@@ -3369,174 +3333,5 @@ function initEventListeners() {
     if (!originalId) return;
     const guide = allExamGuides.find(g => g.id === originalId);
     await deleteGuideById(originalId, guide?.title);
-  });
-
-  // Database Settings Modal Event Handlers
-  const modalDbSettings = document.getElementById('modalDbSettings');
-  document.getElementById('btnOpenDbSettings')?.addEventListener('click', () => {
-    const { url, key } = getSupabaseConfig();
-    const inputUrl = document.getElementById('inputSupabaseUrl');
-    const inputKey = document.getElementById('inputSupabaseKey');
-    if (inputUrl) inputUrl.value = url;
-    if (inputKey) inputKey.value = key;
-    modalDbSettings?.classList.remove('hidden');
-    lucide.createIcons();
-  });
-
-  document.getElementById('btnCloseDbSettings')?.addEventListener('click', () => {
-    modalDbSettings?.classList.add('hidden');
-  });
-
-  // Save Supabase Settings & Test Connection
-  document.getElementById('formDbSettings')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const url = document.getElementById('inputSupabaseUrl').value.trim();
-    const key = document.getElementById('inputSupabaseKey').value.trim();
-    const btnSave = document.getElementById('btnSaveDbSettings');
-
-    if (!url || !key) {
-      Swal.fire({ icon: 'warning', title: 'โปรดกรอก Project URL และ Anon Key' });
-      return;
-    }
-
-    btnSave.disabled = true;
-    btnSave.textContent = 'กำลังทดสอบการเชื่อมต่อ...';
-
-    try {
-      if (!window.supabase?.createClient) {
-        throw new Error('Supabase library ยังไม่พร้อมใช้งาน กรุณารีเฟรชหน้าเว็บ');
-      }
-      const testClient = window.supabase.createClient(url, key);
-      const { data, error } = await testClient.from('tasks').select('*').limit(1);
-      if (error && error.code !== 'PGRST116') {
-        throw new Error(error.message || 'การเชื่อมต่อล้มเหลว');
-      }
-
-      // Save to localStorage
-      localStorage.setItem('supabase_project_url', url);
-      localStorage.setItem('supabase_anon_key', key);
-
-      initSupabase();
-      await loadData();
-      await loadExamGuides();
-
-      modalDbSettings?.classList.add('hidden');
-      Swal.fire({
-        icon: 'success',
-        title: 'เชื่อมต่อ Supabase สำเร็จ!',
-        text: 'ระบบเริ่มใช้งานฐานข้อมูล PostgreSQL และ Realtime Sync เรียบร้อยแล้ว',
-        timer: 2000,
-        showConfirmButton: false
-      });
-    } catch (err) {
-      const isMissingTable = err.message.includes('relation "public.tasks" does not exist') || err.message.includes('tasks');
-      Swal.fire({
-        icon: 'error',
-        title: 'เชื่อมต่อไม่สำเร็จ',
-        text: isMissingTable
-          ? 'เชื่อมต่อได้ แต่ยังไม่ได้สร้างตาราง! กรุณาก๊อปปี้โค้ดใน supabase_schema.sql ไปกด Run ใน Supabase SQL Editor ก่อนนะครับ'
-          : `เกิดข้อผิดพลาด: ${err.message}`
-      });
-    } finally {
-      btnSave.disabled = false;
-      btnSave.textContent = 'บันทึก & เชื่อมต่อ';
-    }
-  });
-
-  // Disconnect Supabase
-  document.getElementById('btnDisconnectSupabase')?.addEventListener('click', () => {
-    localStorage.removeItem('supabase_project_url');
-    localStorage.removeItem('supabase_anon_key');
-    initSupabase();
-    modalDbSettings?.classList.add('hidden');
-    Swal.fire({
-      icon: 'info',
-      title: 'ยกเลิกการเชื่อมต่อ Supabase แล้ว',
-      text: 'ระบบเปลี่ยนกลับมาใช้ LocalStorage และ SheetDB ชั่วคราว',
-      timer: 1800,
-      showConfirmButton: false
-    });
-  });
-
-  // Migrate Data to Supabase in 1 click
-  document.getElementById('btnMigrateToSupabase')?.addEventListener('click', async () => {
-    if (!supabaseClient) {
-      Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เชื่อมต่อ Supabase', text: 'กรุณากรอก URL และ Key แล้วกดบันทึกก่อนโอนข้อมูล' });
-      return;
-    }
-
-    const confirmRes = await Swal.fire({
-      title: 'โอนข้อมูลขึ้น Supabase?',
-      text: `จะทำการส่งงาน ${allTasks.length} รายการ และเอกสารข้อสอบ ${allExamGuides.length} ชุด ขึ้นสู่ Supabase Cloud`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'ใช่, โอนข้อมูลเลย',
-      cancelButtonText: 'ยกเลิก'
-    });
-
-    if (!confirmRes.isConfirmed) return;
-
-    Swal.fire({
-      title: 'กำลังโอนย้ายข้อมูล...',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading()
-    });
-
-    try {
-      // 1. Migrate tasks
-      if (allTasks.length > 0) {
-        const tasksPayload = allTasks.map(t => ({
-          id: t.id || `task_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-          term: t.term || '',
-          subject: t.subject || '',
-          title: t.title || '',
-          type: t.type || 'การบ้าน',
-          due_date: t.due_date || '',
-          status: t.status || 'รอดำเนินการ',
-          link: t.link || ''
-        }));
-        const { error: tErr } = await supabaseClient.from('tasks').upsert(tasksPayload);
-        if (tErr) throw tErr;
-      }
-
-      // 2. Migrate exam guides
-      if (allExamGuides.length > 0) {
-        const guidesPayload = allExamGuides.map(g => ({
-          id: g.id || `guide_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-          term: g.term || '',
-          subject: g.subject || '',
-          exam_type: g.exam_type || 'สรุปบทเรียน',
-          title: g.title || '',
-          format: g.format || '',
-          scope: g.scope || g.content_html || '',
-          tips: g.tips || '',
-          pdf_link: g.pdf_link || '',
-          contributor: g.contributor || 'เพื่อนร่วมชั้น',
-          content_html: g.content_html || g.scope || '',
-          pages: g.pages || [],
-          created_at: g.created_at || new Date().toLocaleDateString('th-TH')
-        }));
-        const { error: gErr } = await supabaseClient.from('exam_guides').upsert(guidesPayload);
-        if (gErr) throw gErr;
-      }
-
-      await loadData();
-      await loadExamGuides();
-
-      modalDbSettings?.classList.add('hidden');
-      Swal.fire({
-        icon: 'success',
-        title: 'โอนย้ายข้อมูลสำเร็จ!',
-        text: 'ข้อมูลทั้งหมดถูกเก็บไว้บน Supabase Cloud เรียบร้อยแล้ว',
-        timer: 2000,
-        showConfirmButton: false
-      });
-    } catch (e) {
-      Swal.fire({
-        icon: 'error',
-        title: 'โอนย้ายล้มเหลว',
-        text: `เกิดข้อผิดพลาด: ${e.message}`
-      });
-    }
   });
 }
