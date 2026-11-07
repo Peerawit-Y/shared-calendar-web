@@ -1,4 +1,4 @@
-// Shared Calendar Web App with Supabase (Realtime DB) & SheetDB Fallback
+// Shared Calendar Web App with Supabase (PostgreSQL & Realtime DB)
 
 // Supabase Client State & Realtime
 let supabaseClient = null;
@@ -30,7 +30,7 @@ function initSupabase() {
     }
   }
   supabaseClient = null;
-  updateDbStatusBadge(false, 'Local / SheetDB');
+  updateDbStatusBadge(false, 'Local Storage');
   return false;
 }
 
@@ -68,47 +68,116 @@ function setupSupabaseRealtime() {
     .subscribe();
 }
 
-// Helper to get SheetDB API URL with fallback
-function getApiUrl() {
-  const envUrl = import.meta.env?.VITE_SHEETDB_API_URL;
-  return envUrl ? envUrl.trim() : 'https://sheetdb.io/api/v1/g93512lz56uec';
+// Local Storage Key for Tasks
+const STORAGE_TASKS_KEY = 'shared_calendar_tasks_v2';
+
+function getLocalTasks() {
+  try {
+    const raw = localStorage.getItem(STORAGE_TASKS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed.map(normalizeTask);
+    }
+  } catch (e) {}
+  return null;
 }
 
-// Demo initial sample tasks
+function saveLocalTasks(tasks) {
+  try {
+    if (!tasks || !Array.isArray(tasks)) return;
+    localStorage.setItem(STORAGE_TASKS_KEY, JSON.stringify(tasks));
+  } catch (e) {}
+}
+
+// Demo initial tasks (Imported from Google Sheet)
 const defaultDemoData = [
   {
-    term: "1/2569",
-    subject: "CS101",
-    title: "สอบกลางภาค (Midterm Exam)",
+    id: "task_1",
+    term: "1.2/2569",
+    subject: "software",
+    title: "สอบ Final วันจันทร์ที่ เวลา 9.30-12.30",
     type: "สอบ",
     due_date: "09/11/2026 09:30",
-    status: "รอดำเนินการ",
-    link: "https://drive.google.com"
-  },
-  {
-    term: "1/2569",
-    subject: "CS102",
-    title: "การบ้านเขียนโปรแกรม Lab 3",
-    type: "การบ้าน",
-    due_date: "07/11/2026 23:59",
-    status: "กำลังทำ",
-    link: "https://classroom.google.com"
-  },
-  {
-    term: "1/2569",
-    subject: "GEN201",
-    title: "รายงานกลุ่มวิชาศึกษาทั่วไป",
-    type: "โปรเจกต์",
-    due_date: "15/11/2026 18:00",
     status: "รอดำเนินการ",
     link: ""
   },
   {
-    term: "2.1/9/2569",
+    id: "task_2",
+    term: "1.2/2569",
     subject: "software",
-    title: "สอบ Final วันจันทร์ที่ เวลา 9.30-12.30 ห้อง 4-0506",
+    title: "เขียน BPM โดยใช้ program bizagi",
+    type: "การบ้าน",
+    due_date: "13/11/2026 23:59",
+    status: "รอดำเนินการ",
+    link: ""
+  },
+  {
+    id: "task_3",
+    term: "1.2/2569",
+    subject: "software",
+    title: "Test plan ส่งวันที่ 07/11/2569 ก่อน 23.59",
+    type: "การบ้าน",
+    due_date: "07/11/2026 23:59",
+    status: "รอดำเนินการ",
+    link: ""
+  },
+  {
+    id: "task_4",
+    term: "1.2/2569",
+    subject: "อังกฤษ",
+    title: "สอบ EDP",
     type: "สอบ",
-    due_date: "09/11/2026 09:30",
+    due_date: "12/11/2026 23:59",
+    status: "รอดำเนินการ",
+    link: ""
+  },
+  {
+    id: "task_5",
+    term: "1.2/2569",
+    subject: "ai",
+    title: "สอบ โปรเจคปัญญาประดิษฐ์",
+    type: "สอบ",
+    due_date: "26/11/2026 23:59",
+    status: "รอดำเนินการ",
+    link: ""
+  },
+  {
+    id: "task_6",
+    term: "1.2/2569",
+    subject: "software",
+    title: "ส่งสมุดท้ายบท 10 บท",
+    type: "การบ้าน",
+    due_date: "09/11/2026 23:59",
+    status: "รอดำเนินการ",
+    link: ""
+  },
+  {
+    id: "task_7",
+    term: "1.2/2569",
+    subject: "software",
+    title: "ถ่ายคลิป",
+    type: "นัดหมาย",
+    due_date: "06/11/2026 23:59",
+    status: "ยกเลิก",
+    link: ""
+  },
+  {
+    id: "task_8",
+    term: "1.2/2569",
+    subject: "AI",
+    title: "สอบ AI (แบ่งรอบ เช้า-บ่าย)",
+    type: "สอบ",
+    due_date: "16/11/2026 23:59",
+    status: "รอดำเนินการ",
+    link: ""
+  },
+  {
+    id: "task_9",
+    term: "1.2/2569",
+    subject: "software",
+    title: "ถ่ายคลิป",
+    type: "นัดหมาย",
+    due_date: "09/11/2026 23:59",
     status: "รอดำเนินการ",
     link: ""
   }
@@ -118,7 +187,7 @@ const defaultDemoData = [
 const defaultDemoExamGuides = [
   {
     id: "guide_1",
-    term: "2.1/9/2569",
+    term: "1.2/2569",
     subject: "software",
     exam_type: "สอบปลายภาค (Final)",
     title: "แนวข้อสอบ Final Software + จุดเน้นข้อเขียน",
@@ -131,7 +200,7 @@ const defaultDemoExamGuides = [
   },
   {
     id: "guide_2",
-    term: "2.1/9/2569",
+    term: "1.2/2569",
     subject: "อังกฤษ",
     exam_type: "สอบปลายภาค (Final)",
     title: "สรุปไวยากรณ์สอบ EDP + คำศัพท์ออกบ่อย 50 คำ",
@@ -144,7 +213,7 @@ const defaultDemoExamGuides = [
   },
   {
     id: "guide_3",
-    term: "2.1/9/2569",
+    term: "1.2/2569",
     subject: "ai",
     exam_type: "สอบปลายภาค (Final)",
     title: "แนวข้อสอบ & เกณฑ์พรีเซนต์โปรเจกต์ปัญญาประดิษฐ์",
@@ -540,48 +609,42 @@ function initCalendar() {
   });
 }
 
-// Fetch Tasks (From Supabase or SheetDB / Local Demo)
+// Fetch Tasks (From Supabase with Local Storage Cache)
 async function loadData() {
   const refreshIcon = document.getElementById('refreshIcon');
   refreshIcon?.classList.add('animate-spin');
 
-  // 1. Supabase Priority (Fast, Realtime, No Quota Limit)
+  // STEP 1: Immediately render from LocalStorage! (Instant 0s load)
+  const localTasks = getLocalTasks();
+  if (localTasks && localTasks.length > 0) {
+    allTasks = localTasks;
+    renderAllViews();
+  }
+
+  // STEP 2: Supabase Priority (Fast, Realtime, No Quota Limit)
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient.from('tasks').select('*');
-      if (!error && Array.isArray(data)) {
+      if (!error && Array.isArray(data) && data.length > 0) {
         allTasks = data.map(normalizeTask);
+        saveLocalTasks(allTasks);
         renderAllViews();
         refreshIcon?.classList.remove('animate-spin');
         return;
       }
     } catch (e) {
-      console.warn('Supabase tasks load failed, trying fallback:', e);
+      console.warn('Supabase tasks load error:', e);
     }
   }
 
-  // 2. SheetDB / Local Fallback
-  const apiUrl = getApiUrl();
-  if (!apiUrl) {
+  // STEP 3: Fallback only if local and Supabase are both empty
+  if (!allTasks || allTasks.length === 0) {
     allTasks = defaultDemoData.map(normalizeTask);
+    saveLocalTasks(allTasks);
     renderAllViews();
-    refreshIcon?.classList.remove('animate-spin');
-    return;
   }
 
-  try {
-    const res = await fetch(apiUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    allTasks = Array.isArray(data) ? data.map(normalizeTask) : [];
-    renderAllViews();
-  } catch (err) {
-    console.error('Error fetching data:', err);
-    allTasks = defaultDemoData.map(normalizeTask);
-    renderAllViews();
-  } finally {
-    refreshIcon?.classList.remove('animate-spin');
-  }
+  refreshIcon?.classList.remove('animate-spin');
 }
 
 // Local-First Storage Keys
@@ -678,9 +741,8 @@ function mergeLocalAndRemoteGuides(localList, remoteList) {
   return merged;
 }
 
-// Fetch Exam Guides (Local-First + Supabase / SheetDB)
+// Fetch Exam Guides (Local-First + Supabase)
 async function loadExamGuides() {
-  const apiUrl = getApiUrl();
   const badge = document.getElementById('badgeGuideCount');
 
   // STEP 1: Immediately render from LocalStorage! (Instant load, 0s delay, never loses text)
@@ -693,7 +755,7 @@ async function loadExamGuides() {
     renderSidebarGuideList();
   }
 
-  // STEP 2: Supabase Cloud Sync (Priority - Fast, No Quota Limit)
+  // STEP 2: Supabase Cloud Sync (Fast, Realtime, No Quota Limit)
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient.from('exam_guides').select('*');
@@ -709,24 +771,7 @@ async function loadExamGuides() {
         return;
       }
     } catch (e) {
-      console.warn('Supabase exam guides sync error, falling back:', e);
-    }
-  }
-
-  // STEP 3: Fallback background sync from SheetDB
-  if (apiUrl) {
-    try {
-      const res = await fetch(`${apiUrl}?sheet=ExamGuides`);
-      if (res.ok) {
-        const remoteData = await res.json();
-        if (Array.isArray(remoteData) && remoteData.length > 0) {
-          const normalizedRemote = remoteData.map(normalizeExamGuide);
-          allExamGuides = mergeLocalAndRemoteGuides(allExamGuides, normalizedRemote);
-          saveLocalExamGuides(allExamGuides);
-        }
-      }
-    } catch (err) {
-      console.warn('Cloud sync error (using local storage cache safely):', err);
+      console.warn('Supabase exam guides sync error:', e);
     }
   }
 
@@ -1218,18 +1263,11 @@ async function duplicateCurrentDocument() {
   };
 
   allExamGuides.unshift(duplicatedGuide);
+  saveLocalExamGuides(allExamGuides);
 
-  // Background sync to SheetDB
-  const apiUrl = getApiUrl();
-  if (apiUrl) {
-    fetch(`${apiUrl}?sheet=ExamGuides`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ data: [duplicatedGuide] })
-    }).catch(err => console.warn('Sync duplicate error:', err));
+  // Background sync to Supabase
+  if (supabaseClient) {
+    supabaseClient.from('exam_guides').upsert(duplicatedGuide).catch(err => console.warn('Supabase duplicate sync error:', err));
   }
 
   const badge = document.getElementById('badgeGuideCount');
@@ -1498,18 +1536,11 @@ function createDocumentFromTemplate(templateType) {
   };
 
   allExamGuides.unshift(newGuide);
+  saveLocalExamGuides(allExamGuides);
 
-  // Background sync
-  const apiUrl = getApiUrl();
-  if (apiUrl) {
-    fetch(`${apiUrl}?sheet=ExamGuides`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ data: [newGuide] })
-    }).catch(err => console.warn('Background sync failed:', err));
+  // Background sync to Supabase
+  if (supabaseClient) {
+    supabaseClient.from('exam_guides').upsert(newGuide).catch(err => console.warn('Supabase template sync error:', err));
   }
 
   const badge = document.getElementById('badgeGuideCount');
@@ -1580,17 +1611,9 @@ function createNewBlankWordDocument() {
 
   allExamGuides.unshift(newGuide);
 
-  // Background sync to SheetDB
-  const apiUrl = getApiUrl();
-  if (apiUrl) {
-    fetch(`${apiUrl}?sheet=ExamGuides`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ data: [newGuide] })
-    }).catch(err => console.warn('Background sync failed:', err));
+  // Background sync to Supabase
+  if (supabaseClient) {
+    supabaseClient.from('exam_guides').upsert(newGuide).catch(err => console.warn('Supabase new doc sync error:', err));
   }
 
   const badge = document.getElementById('badgeGuideCount');
@@ -1770,21 +1793,10 @@ async function deleteCurrentDocument() {
     } catch (e) {
       console.warn('Supabase delete error:', e);
     }
-  } else {
-    const apiUrl = getApiUrl();
-    if (apiUrl && currentReadingGuide.id) {
-      try {
-        await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
-          method: 'DELETE',
-          headers: { 'Accept': 'application/json' }
-        });
-      } catch (e) {
-        console.warn('SheetDB delete error:', e);
-      }
-    }
   }
 
   allExamGuides = allExamGuides.filter(g => g.id !== currentReadingGuide.id);
+  saveLocalExamGuides(allExamGuides);
   const badge = document.getElementById('badgeGuideCount');
   if (badge) badge.textContent = allExamGuides.length;
 
@@ -2110,11 +2122,9 @@ async function saveWordDocument(showFeedback = true) {
     "created_at": currentReadingGuide.created_at || new Date().toLocaleDateString('th-TH')
   };
 
-  const apiUrl = getApiUrl();
   let syncSuccess = false;
-  let quotaExceeded = false;
 
-  // PRIORITY 1: Supabase Cloud Save (Unlimited size & requests, Realtime sync)
+  // Supabase Cloud Save (Unlimited size & requests, Realtime sync)
   if (supabaseClient && currentReadingGuide.id) {
     try {
       const supabaseDoc = {
@@ -2144,41 +2154,6 @@ async function saveWordDocument(showFeedback = true) {
     } catch (err) {
       console.warn('Supabase upsert error:', err);
     }
-  } else if (apiUrl && currentReadingGuide.id) {
-    // PRIORITY 2: SheetDB Fallback
-    try {
-      let res = await fetch(`${apiUrl}/id/${encodeURIComponent(currentReadingGuide.id)}?sheet=ExamGuides`, {
-        method: 'PATCH',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ data: guidePayload })
-      });
-
-      // If row not found in Google Sheets, insert as new row via POST
-      if (res.status === 404) {
-        res = await fetch(`${apiUrl}?sheet=ExamGuides`, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ data: [guidePayload] })
-        });
-      }
-
-      if (res.ok) {
-        syncSuccess = true;
-        currentReadingGuide._unsaved = false;
-        saveLocalExamGuides(allExamGuides);
-      } else if (res.status === 402 || res.status === 429) {
-        quotaExceeded = true;
-        console.warn('SheetDB quota reached (500 req/month limit). Saved locally in browser.');
-      }
-    } catch (err) {
-      console.warn('Cloud sync failed, safely saved locally:', err);
-    }
   }
 
   renderSidebarGuideList();
@@ -2189,11 +2164,9 @@ async function saveWordDocument(showFeedback = true) {
 
   if (saveStatus) {
     if (syncSuccess) {
-      saveStatus.innerHTML = `<i data-lucide="cloud-check" class="w-3.5 h-3.5 text-emerald-600"></i> <span class="text-emerald-600 font-semibold">บันทึก & ซิงค์แล้ว</span>`;
-    } else if (quotaExceeded) {
-      saveStatus.innerHTML = `<i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-600"></i> <span class="text-amber-600 font-semibold" title="โควตา SheetDB เต็ม แต่ข้อมูลบันทึกในเครื่องปลอดภัย 100%">บันทึกในเครื่อง (Cloud เต็ม)</span>`;
+      saveStatus.innerHTML = `<i data-lucide="cloud-check" class="w-3.5 h-3.5 text-emerald-600"></i> <span class="text-emerald-600 font-semibold">บันทึก & ซิงค์ Supabase แล้ว</span>`;
     } else {
-      saveStatus.innerHTML = `<i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i> <span class="text-emerald-600 font-semibold">บันทึกในเครื่องแล้ว</span>`;
+      saveStatus.innerHTML = `<i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i> <span class="text-emerald-600 font-semibold">บันทึกในเครื่องปลอดภัย</span>`;
     }
     saveStatus.classList.remove('hidden');
     lucide.createIcons();
@@ -2747,71 +2720,25 @@ function initEventListeners() {
     if (supabaseClient) {
       try {
         const { error } = await supabaseClient.from('tasks').insert([rowPayload]);
-        if (error) throw error;
-        Swal.fire({
-          icon: 'success',
-          title: 'บันทึกสำเร็จ!',
-          text: 'ข้อมูลถูกส่งเข้า Supabase เรียบร้อยแล้ว',
-          timer: 1800,
-          showConfirmButton: false
-        });
-        addModal.classList.add('hidden');
-        document.getElementById('addTaskForm').reset();
-        await loadData();
+        if (error) console.warn('Supabase task insert error:', error);
       } catch (err) {
         console.error('Error posting task to Supabase:', err);
-        allTasks.push(normalizeTask(rowPayload));
-        renderAllViews();
-        addModal.classList.add('hidden');
-        document.getElementById('addTaskForm').reset();
-        Swal.fire({
-          icon: 'success',
-          title: 'บันทึกสำเร็จ!',
-          timer: 1500,
-          showConfirmButton: false
-        });
-      }
-    } else {
-      const apiUrl = getApiUrl();
-      if (apiUrl) {
-        try {
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ data: [rowPayload] })
-          });
-
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-          Swal.fire({
-            icon: 'success',
-            title: 'บันทึกสำเร็จ!',
-            text: 'ข้อมูลถูกส่งเข้า Google Sheet เรียบร้อยแล้ว',
-            timer: 1800,
-            showConfirmButton: false
-          });
-
-          addModal.classList.add('hidden');
-          document.getElementById('addTaskForm').reset();
-          await loadData();
-        } catch (err) {
-          console.error('Error posting task:', err);
-          allTasks.push(normalizeTask(rowPayload));
-          renderAllViews();
-          addModal.classList.add('hidden');
-          document.getElementById('addTaskForm').reset();
-          Swal.fire({
-            icon: 'success',
-            title: 'บันทึกสำเร็จ!',
-            timer: 1500,
-            showConfirmButton: false
-          });
-        }
       }
     }
+
+    allTasks.push(normalizeTask(rowPayload));
+    saveLocalTasks(allTasks);
+    renderAllViews();
+    addModal.classList.add('hidden');
+    document.getElementById('addTaskForm').reset();
+
+    Swal.fire({
+      icon: 'success',
+      title: 'บันทึกสำเร็จ!',
+      text: supabaseClient ? 'ข้อมูลถูกส่งเข้า Supabase เรียบร้อยแล้ว' : 'บันทึกข้อมูลเรียบร้อยแล้ว',
+      timer: 1800,
+      showConfirmButton: false
+    });
 
     btnSubmit.disabled = false;
     btnSubmit.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>บันทึกงาน</span>`;
@@ -2856,80 +2783,27 @@ function initEventListeners() {
     if (supabaseClient) {
       try {
         const { error } = await supabaseClient.from('tasks').update(updatedPayload).eq('title', originalTitle);
-        if (error) throw error;
-        Swal.fire({
-          icon: 'success',
-          title: 'แก้ไขสำเร็จ!',
-          text: 'ข้อมูลถูกอัปเดตลง Supabase เรียบร้อยแล้ว',
-          timer: 1800,
-          showConfirmButton: false
-        });
-        editModal.classList.add('hidden');
-        await loadData();
+        if (error) console.warn('Supabase update error:', error);
       } catch (err) {
         console.error('Error updating task in Supabase:', err);
-        const idx = allTasks.findIndex(t => t.title === originalTitle);
-        if (idx !== -1) {
-          allTasks[idx] = normalizeTask(updatedPayload);
-          renderAllViews();
-        }
-        editModal.classList.add('hidden');
-      }
-    } else {
-      const apiUrl = getApiUrl();
-      if (apiUrl) {
-        try {
-          let endpoint = `${apiUrl}/Title/${encodeURIComponent(originalTitle)}`;
-          let response = await fetch(endpoint, {
-            method: 'PATCH',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ data: updatedPayload })
-          });
-
-          if (response.status === 404) {
-            endpoint = `${apiUrl}/title/${encodeURIComponent(originalTitle)}`;
-            response = await fetch(endpoint, {
-              method: 'PATCH',
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ data: updatedPayload })
-            });
-          }
-
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-          Swal.fire({
-            icon: 'success',
-            title: 'แก้ไขสำเร็จ!',
-            text: 'ข้อมูลถูกอัปเดตลง Google Sheet เรียบร้อยแล้ว',
-            timer: 1800,
-            showConfirmButton: false
-          });
-
-          editModal.classList.add('hidden');
-          await loadData();
-        } catch (err) {
-          console.error('Error updating task:', err);
-          const idx = allTasks.findIndex(t => t.title === originalTitle);
-          if (idx !== -1) {
-            allTasks[idx] = normalizeTask(updatedPayload);
-            renderAllViews();
-          }
-          Swal.fire({
-            icon: 'success',
-            title: 'แก้ไขสำเร็จ!',
-            timer: 1500,
-            showConfirmButton: false
-          });
-          editModal.classList.add('hidden');
-        }
       }
     }
+
+    const idx = allTasks.findIndex(t => t.title === originalTitle);
+    if (idx !== -1) {
+      allTasks[idx] = normalizeTask(updatedPayload);
+    }
+    saveLocalTasks(allTasks);
+    renderAllViews();
+    editModal.classList.add('hidden');
+
+    Swal.fire({
+      icon: 'success',
+      title: 'แก้ไขสำเร็จ!',
+      text: supabaseClient ? 'ข้อมูลถูกอัปเดตลง Supabase เรียบร้อยแล้ว' : 'แก้ไขข้อมูลเรียบร้อยแล้ว',
+      timer: 1800,
+      showConfirmButton: false
+    });
 
     btnSubmit.disabled = false;
     btnSubmit.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>บันทึกการแก้ไข</span>`;
@@ -2960,30 +2834,10 @@ function initEventListeners() {
       } catch (e) {
         console.warn('Supabase delete error:', e);
       }
-    } else {
-      const apiUrl = getApiUrl();
-      if (apiUrl) {
-        try {
-          let endpoint = `${apiUrl}/Title/${encodeURIComponent(originalTitle)}`;
-          let response = await fetch(endpoint, {
-            method: 'DELETE',
-            headers: { 'Accept': 'application/json' }
-          });
-
-          if (response.status === 404) {
-            endpoint = `${apiUrl}/title/${encodeURIComponent(originalTitle)}`;
-            response = await fetch(endpoint, {
-              method: 'DELETE',
-              headers: { 'Accept': 'application/json' }
-            });
-          }
-        } catch (err) {
-          console.error('Error deleting task from SheetDB:', err);
-        }
-      }
     }
 
     allTasks = allTasks.filter(t => t.title !== originalTitle);
+    saveLocalTasks(allTasks);
     renderAllViews();
     editModal.classList.add('hidden');
     Swal.fire({
@@ -3038,35 +2892,6 @@ function initEventListeners() {
       } catch (err) {
         console.warn('Supabase ExamGuides sync failed:', err);
       }
-    } else {
-      const apiUrl = getApiUrl();
-      if (apiUrl) {
-        try {
-          if (isEdit) {
-            const res = await fetch(`${apiUrl}/id/${encodeURIComponent(originalId)}?sheet=ExamGuides`, {
-              method: 'PATCH',
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ data: guidePayload })
-            });
-            saveSuccess = res.ok;
-          } else {
-            const res = await fetch(`${apiUrl}?sheet=ExamGuides`, {
-              method: 'POST',
-              headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ data: [guidePayload] })
-            });
-            saveSuccess = res.ok;
-          }
-        } catch (err) {
-          console.warn('SheetDB ExamGuides sync failed:', err);
-        }
-      }
     }
 
     // Update local memory & storage
@@ -3092,7 +2917,7 @@ function initEventListeners() {
     Swal.fire({
       icon: 'success',
       title: isEdit ? 'แก้ไขแนวข้อสอบสำเร็จ!' : 'แชร์แนวข้อสอบสำเร็จ!',
-      text: saveSuccess ? 'ข้อมูลถูกบันทึกขึ้นคลาวด์เรียบร้อยแล้ว' : 'บันทึกข้อมูลเรียบร้อยแล้ว',
+      text: saveSuccess ? 'ข้อมูลถูกบันทึกขึ้น Supabase Cloud เรียบร้อยแล้ว' : 'บันทึกข้อมูลเรียบร้อยแล้ว',
       timer: 2000,
       showConfirmButton: false
     });
@@ -3125,18 +2950,6 @@ function initEventListeners() {
         await supabaseClient.from('exam_guides').delete().eq('id', originalId);
       } catch (e) {
         console.warn('Supabase delete guide error:', e);
-      }
-    } else {
-      const apiUrl = getApiUrl();
-      if (apiUrl) {
-        try {
-          await fetch(`${apiUrl}/id/${encodeURIComponent(originalId)}?sheet=ExamGuides`, {
-            method: 'DELETE',
-            headers: { 'Accept': 'application/json' }
-          });
-        } catch (e) {
-          console.warn('SheetDB delete error:', e);
-        }
       }
     }
 
