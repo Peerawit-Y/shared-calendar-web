@@ -1813,24 +1813,71 @@ function createWordPageElement(pageIndex, totalPages, initialContent = '', isFir
     });
   });
 
-  // Callout Box Protection: Prevent Enter or Paste from escaping the callout box
+  // Callout Box Protection & Exit Navigation Helpers
   const bodyEl = pageDiv.querySelector('.word-page-body');
   if (bodyEl) {
-    bodyEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const sel = window.getSelection();
-        if (!sel || !sel.rangeCount) return;
-        const range = sel.getRangeAt(0);
-        const callout = range.startContainer.nodeType === 1
-          ? range.startContainer.closest('.exam-callout-box, [data-callout], [class*="bg-yellow-"], [class*="bg-amber-"]')
-          : range.startContainer.parentElement?.closest('.exam-callout-box, [data-callout], [class*="bg-yellow-"], [class*="bg-amber-"]');
-
-        if (callout) {
-          e.preventDefault();
-          document.execCommand('insertLineBreak');
-          triggerWordAutoSave();
-          updateWordStats();
+    // Click outside handler: if clicking empty white area below the callout box
+    bodyEl.addEventListener('click', (e) => {
+      if (e.target === bodyEl) {
+        let lastChild = bodyEl.lastElementChild;
+        if (!lastChild || lastChild.classList.contains('exam-callout-box') || lastChild.tagName === 'DIV') {
+          const p = document.createElement('p');
+          p.innerHTML = '<br>';
+          bodyEl.appendChild(p);
+          lastChild = p;
         }
+        const r = document.createRange();
+        r.setStart(lastChild, 0);
+        r.collapse(true);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      }
+    });
+
+    bodyEl.addEventListener('keydown', (e) => {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const callout = range.startContainer.nodeType === 1
+        ? range.startContainer.closest('.exam-callout-box, [data-callout], [class*="bg-yellow-"], [class*="bg-amber-"]')
+        : range.startContainer.parentElement?.closest('.exam-callout-box, [data-callout], [class*="bg-yellow-"], [class*="bg-amber-"]');
+
+      if (!callout) return;
+
+      // 1. Escape: Instant exit to outside paragraph below
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        exitCalloutBox(callout);
+        return;
+      }
+
+      // 2. ArrowDown at the end of callout box: move to line below
+      if (e.key === 'ArrowDown') {
+        const calloutRange = document.createRange();
+        calloutRange.selectNodeContents(callout);
+        if (range.compareBoundaryPoints(Range.END_TO_END, calloutRange) >= 0) {
+          e.preventDefault();
+          exitCalloutBox(callout);
+          return;
+        }
+      }
+
+      // 3. Enter key
+      if (e.key === 'Enter') {
+        // If Enter is pressed on an empty line at the end (Double Enter) -> Exit box!
+        if (checkIsTrailingEmpty(range, callout)) {
+          e.preventDefault();
+          cleanTrailingBreak(callout);
+          exitCalloutBox(callout);
+          return;
+        }
+
+        // Normal Enter -> insert line break inside the box
+        e.preventDefault();
+        document.execCommand('insertLineBreak');
+        triggerWordAutoSave();
+        updateWordStats();
       }
     });
 
@@ -2029,7 +2076,71 @@ function insertHtmlAtCursorOrActivePage(html) {
   lucide.createIcons();
 }
 
-// Enhance callout boxes: ensure header is uneditable and has proper classes
+// Callout Box Exit & Navigation Logic
+function exitCalloutBox(callout) {
+  if (!callout) return;
+
+  // Find or create paragraph immediately after callout box
+  let nextEl = callout.nextElementSibling;
+  if (!nextEl || nextEl.classList.contains('exam-callout-box') || nextEl.tagName === 'DIV') {
+    nextEl = document.createElement('p');
+    nextEl.innerHTML = '<br>';
+    callout.parentNode.insertBefore(nextEl, callout.nextSibling);
+  }
+
+  // Focus caret in nextEl
+  const range = document.createRange();
+  range.selectNodeContents(nextEl);
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  nextEl.focus();
+  triggerWordAutoSave();
+  updateWordStats();
+}
+
+function checkIsTrailingEmpty(range, callout) {
+  if (!range.collapsed) return false;
+
+  const node = range.startContainer;
+  const offset = range.startOffset;
+
+  if (node.nodeType === 1) {
+    const prev = node.childNodes[offset - 1];
+    if (prev && prev.tagName === 'BR') return true;
+    if (node.childNodes.length === 0) return true;
+  } else if (node.nodeType === 3) {
+    const textBefore = node.textContent.slice(0, offset);
+    if (!textBefore || textBefore.trim() === '') {
+      let prev = node.previousSibling;
+      if (prev && prev.tagName === 'BR') return true;
+    }
+  }
+
+  // Check if caret is at the very end of callout
+  const calloutRange = document.createRange();
+  calloutRange.selectNodeContents(callout);
+  if (range.compareBoundaryPoints(Range.END_TO_END, calloutRange) >= 0) {
+    const lastNode = callout.lastChild;
+    if (lastNode && (lastNode.tagName === 'BR' || (lastNode.nodeType === 3 && !lastNode.textContent.trim()))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function cleanTrailingBreak(callout) {
+  const brs = callout.querySelectorAll('br');
+  if (brs.length > 0) {
+    const lastBr = brs[brs.length - 1];
+    lastBr.remove();
+  }
+}
+
+// Enhance callout boxes: ensure header is uneditable, has hint, and has paragraph below
 function enhanceCalloutBoxes(container) {
   if (!container) return;
   const callouts = container.querySelectorAll('.exam-callout-box, [data-callout], [class*="bg-yellow-100"], [class*="bg-amber-"]');
@@ -2040,15 +2151,24 @@ function enhanceCalloutBoxes(container) {
       header.classList.add('callout-header');
       header.setAttribute('contenteditable', 'false');
     }
+    // Ensure there is an editable paragraph immediately below the callout box
+    if (!box.nextElementSibling || box.nextElementSibling.classList.contains('exam-callout-box')) {
+      const p = document.createElement('p');
+      p.innerHTML = '<br>';
+      box.parentNode.insertBefore(p, box.nextSibling);
+    }
   });
 }
 
 function insertStickyNote() {
   const noteHtml = `
     <div class="exam-callout-box my-4 p-4 rounded-xl bg-yellow-100/90 border border-yellow-300 text-amber-950 shadow-xs" data-callout="exam-tips">
-      <div class="callout-header font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-2 select-none" contenteditable="false">
-        <i data-lucide="sparkles" class="w-4 h-4 text-rose-500 fill-rose-500"></i>
-        <span>จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ</span>
+      <div class="callout-header font-bold text-xs uppercase text-amber-900 flex items-center justify-between gap-1.5 mb-2 select-none" contenteditable="false">
+        <div class="flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-4 h-4 text-rose-500 fill-rose-500"></i>
+          <span>จุดที่อาจารย์เน้นย้ำ & เก็งข้อสอบ</span>
+        </div>
+        <span class="text-[10px] text-amber-700/60 font-normal lowercase">(กด enter ว่าง หรือ esc เพื่อออก)</span>
       </div>
       <div class="callout-content min-h-[30px] leading-relaxed">
         <p>พิมพ์จุดเน้นย้ำ หรือแนวข้อสอบที่อาจารย์บอกในห้องที่นี่...</p>
@@ -2062,9 +2182,12 @@ function insertStickyNote() {
 function insertAlertBox() {
   const alertHtml = `
     <div class="exam-callout-box my-4 p-4 rounded-xl bg-amber-50/90 border-2 border-amber-300 text-slate-800 shadow-xs" data-callout="exam-rules">
-      <div class="callout-header font-bold text-xs uppercase text-amber-900 flex items-center gap-1.5 mb-2 select-none" contenteditable="false">
-        <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i>
-        <span>กติกาห้องสอบ & รูปแบบข้อสอบ (Exam Rules)</span>
+      <div class="callout-header font-bold text-xs uppercase text-amber-900 flex items-center justify-between gap-1.5 mb-2 select-none" contenteditable="false">
+        <div class="flex items-center gap-1.5">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i>
+          <span>กติกาห้องสอบ & รูปแบบข้อสอบ (Exam Rules)</span>
+        </div>
+        <span class="text-[10px] text-amber-700/60 font-normal lowercase">(กด enter ว่าง หรือ esc เพื่อออก)</span>
       </div>
       <div class="callout-content min-h-[30px] leading-relaxed">
         <p>ปรนัย 40 ข้อ (40 คะแนน) • อัตนัย 2 ข้อ (20 คะแนน) • อนุญาตเครื่องคิดเลข FX-991</p>
