@@ -107,7 +107,7 @@ const defaultDemoData = [
     subject: "software",
     title: "เขียน BPM โดยใช้ program bizagi",
     type: "การบ้าน",
-    due_date: "13/11/2026 23:59",
+    due_date: "13/11/2026",
     status: "รอดำเนินการ",
     link: ""
   },
@@ -117,7 +117,7 @@ const defaultDemoData = [
     subject: "software",
     title: "Test plan ส่งวันที่ 07/11/2569 ก่อน 23.59",
     type: "การบ้าน",
-    due_date: "07/11/2026 23:59",
+    due_date: "07/11/2026",
     status: "รอดำเนินการ",
     link: ""
   },
@@ -127,7 +127,7 @@ const defaultDemoData = [
     subject: "อังกฤษ",
     title: "สอบ EDP",
     type: "สอบ",
-    due_date: "12/11/2026 23:59",
+    due_date: "12/11/2026",
     status: "รอดำเนินการ",
     link: ""
   },
@@ -137,7 +137,7 @@ const defaultDemoData = [
     subject: "ai",
     title: "สอบ โปรเจคปัญญาประดิษฐ์",
     type: "สอบ",
-    due_date: "26/11/2026 23:59",
+    due_date: "26/11/2026",
     status: "รอดำเนินการ",
     link: ""
   },
@@ -147,7 +147,7 @@ const defaultDemoData = [
     subject: "software",
     title: "ส่งสมุดท้ายบท 10 บท",
     type: "การบ้าน",
-    due_date: "09/11/2026 23:59",
+    due_date: "09/11/2026",
     status: "รอดำเนินการ",
     link: ""
   },
@@ -157,7 +157,7 @@ const defaultDemoData = [
     subject: "software",
     title: "ถ่ายคลิป",
     type: "นัดหมาย",
-    due_date: "06/11/2026 23:59",
+    due_date: "06/11/2026",
     status: "ยกเลิก",
     link: ""
   },
@@ -167,7 +167,7 @@ const defaultDemoData = [
     subject: "AI",
     title: "สอบ AI (แบ่งรอบ เช้า-บ่าย)",
     type: "สอบ",
-    due_date: "16/11/2026 23:59",
+    due_date: "16/11/2026",
     status: "รอดำเนินการ",
     link: ""
   },
@@ -177,7 +177,7 @@ const defaultDemoData = [
     subject: "software",
     title: "ถ่ายคลิป",
     type: "นัดหมาย",
-    due_date: "09/11/2026 23:59",
+    due_date: "09/11/2026",
     status: "รอดำเนินการ",
     link: ""
   }
@@ -251,12 +251,12 @@ function parseThaiDate(dateStr) {
     if (year > 2400) year -= 543;
 
     const hasTime = dmy[4] !== undefined;
-    let hours = hasTime ? parseInt(dmy[4], 10) : 23;
-    let minutes = hasTime ? parseInt(dmy[5], 10) : 59;
+    let hours = hasTime ? parseInt(dmy[4], 10) : 0;
+    let minutes = hasTime ? parseInt(dmy[5], 10) : 0;
     let seconds = dmy[6] !== undefined ? parseInt(dmy[6], 10) : 0;
 
     const d = new Date(year, month, day, hours, minutes, seconds);
-    return isNaN(d.getTime()) ? null : { date: d, hasTime: hasTime };
+    return isNaN(d.getTime()) ? null : { date: d, hasTime: hasTime, hours: hours, minutes: minutes };
   }
 
   // 2. Check YYYY-MM-DD
@@ -268,20 +268,23 @@ function parseThaiDate(dateStr) {
     let day = parseInt(ymd[3], 10);
 
     const hasTime = ymd[4] !== undefined;
-    let hours = hasTime ? parseInt(ymd[4], 10) : 23;
-    let minutes = hasTime ? parseInt(ymd[5], 10) : 59;
+    let hours = hasTime ? parseInt(ymd[4], 10) : 0;
+    let minutes = hasTime ? parseInt(ymd[5], 10) : 0;
     let seconds = ymd[6] !== undefined ? parseInt(ymd[6], 10) : 0;
 
     const d = new Date(year, month, day, hours, minutes, seconds);
-    return isNaN(d.getTime()) ? null : { date: d, hasTime: hasTime };
+    return isNaN(d.getTime()) ? null : { date: d, hasTime: hasTime, hours: hours, minutes: minutes };
   }
 
   // 3. Fallback standard parse
   const fallback = new Date(str);
   if (!isNaN(fallback.getTime())) {
+    const hasTime = str.includes(':') || str.includes('T');
     return {
       date: fallback,
-      hasTime: str.includes(':') || str.includes('T')
+      hasTime: hasTime,
+      hours: fallback.getHours(),
+      minutes: fallback.getMinutes()
     };
   }
 
@@ -297,9 +300,10 @@ function getEventStartString(parsed) {
   const month = pad(d.getMonth() + 1);
   const day = pad(d.getDate());
 
-  if (parsed.hasTime) {
-    const hours = pad(d.getHours());
-    const mins = pad(d.getMinutes());
+  // If time is 23:59 or no time, format as single-day (YYYY-MM-DD) so it never spans across 2 days
+  if (parsed.hasTime && !(parsed.hours === 23 && parsed.minutes === 59)) {
+    const hours = pad(parsed.hours);
+    const mins = pad(parsed.minutes);
     return `${year}-${month}-${day}T${hours}:${mins}:00`;
   }
   return `${year}-${month}-${day}`;
@@ -383,10 +387,16 @@ function normalizeTask(raw) {
     return '';
   };
 
-  const rawDate = getProp(['due_date', 'dueDate', 'Due Date', 'DueDate', 'Date', 'date']);
+  let rawDate = getProp(['due_date', 'dueDate', 'Due Date', 'DueDate', 'Date', 'date']);
+  // Clean trailing 23:59 if it was automatically appended previously
+  if (rawDate && (rawDate.endsWith(' 23:59') || rawDate.endsWith(' 23:59:00'))) {
+    rawDate = rawDate.replace(/\s+23:59(?::00)?$/, '');
+  }
+
   const parsedDate = parseThaiDate(rawDate);
 
   return {
+    id: raw.id || `task_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
     term: getProp(['term', 'Term']),
     subject: getProp(['subject', 'Subject', 'วิชา', 'ชื่อวิชา', 'course', 'Course']),
     title: getProp(['title', 'Title', 'name', 'Name']),
@@ -514,7 +524,7 @@ function formatThaiDateTime(dueDateInfo, rawFallback) {
     year: '2-digit'
   });
 
-  if (!dueDateInfo.hasTime) {
+  if (!dueDateInfo.hasTime || (dueDateInfo.hours === 23 && dueDateInfo.minutes === 59)) {
     return datePart;
   }
 
@@ -576,6 +586,9 @@ function initCalendar() {
   calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: window.innerWidth < 768 ? 'listMonth' : 'dayGridMonth',
     eventDisplay: 'block',
+    nextDayThreshold: '09:00:00',
+    defaultTimedEventDuration: '00:00:00',
+    forceEventDuration: false,
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
@@ -591,8 +604,8 @@ function initCalendar() {
     eventTimeFormat: {
       hour: '2-digit',
       minute: '2-digit',
-      meridiem: false,
-      hour12: false
+      hour12: false,
+      omitZeroMinute: false
     },
     height: 'auto',
     eventClick: function(info) {
@@ -617,7 +630,13 @@ async function loadData() {
   // STEP 1: Immediately render from LocalStorage! (Instant 0s load)
   const localTasks = getLocalTasks();
   if (localTasks && localTasks.length > 0) {
-    allTasks = localTasks;
+    const hasOldMock = localTasks.some(t => t.subject === 'CS101' || t.term === '1/2569');
+    if (hasOldMock) {
+      allTasks = defaultDemoData.map(normalizeTask);
+    } else {
+      allTasks = localTasks.map(normalizeTask);
+    }
+    saveLocalTasks(allTasks);
     renderAllViews();
   }
 
@@ -817,10 +836,44 @@ function renderFiltered() {
 
     const prefix = cancelled ? '❌ [ยกเลิก] ' : (item.subject ? `[${item.subject}] ` : '');
 
+    // Check if event has a specific time or is all-day/end-of-day deadline
+    const isDeadline2359 = item.parsedDate?.hasTime && item.parsedDate?.hours === 23 && item.parsedDate?.minutes === 59;
+    const isAllDay = !item.parsedDate?.hasTime || isDeadline2359;
+
+    let start = item.eventStart || item.due_date;
+    if (isAllDay && item.parsedDate?.date) {
+      const d = item.parsedDate.date;
+      const pad = (n) => String(n).padStart(2, '0');
+      start = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    let end = undefined;
+    if (!isAllDay && item.parsedDate?.date) {
+      const d = item.parsedDate.date;
+      const pad = (n) => String(n).padStart(2, '0');
+      const y = d.getFullYear();
+      const m = pad(d.getMonth() + 1);
+      const day = pad(d.getDate());
+
+      // Check if title mentions a time range like "9.30-12.30"
+      const rangeMatch = item.title?.match(/(\d{1,2})[\.:](\d{2})\s*[-–至to]\s*(\d{1,2})[\.:](\d{2})/i);
+      if (rangeMatch) {
+        const endH = pad(parseInt(rangeMatch[3], 10));
+        const endM = pad(parseInt(rangeMatch[4], 10));
+        end = `${y}-${m}-${day}T${endH}:${endM}:00`;
+      } else {
+        // Safe end within the same day so it never crosses midnight
+        const endH = Math.min(d.getHours() + 1, 23);
+        const endM = endH === 23 ? 59 : d.getMinutes();
+        end = `${y}-${m}-${day}T${pad(endH)}:${pad(endM)}:00`;
+      }
+    }
+
     return {
       title: `${prefix}${item.title}`,
-      start: item.eventStart || item.due_date,
-      allDay: !item.parsedDate?.hasTime,
+      start: start,
+      end: end,
+      allDay: isAllDay,
       backgroundColor: color,
       borderColor: color,
       textColor: '#ffffff',
