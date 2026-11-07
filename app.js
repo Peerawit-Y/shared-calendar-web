@@ -642,20 +642,47 @@ function initCalendar() {
   });
 }
 
+// Data Sanitizers for PostgreSQL (Strict lowercase schema mapping)
+function formatTaskForSupabase(raw) {
+  if (!raw) return {};
+  return {
+    id: String(raw.id || `task_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`),
+    term: String(raw.term || raw.Term || ''),
+    subject: String(raw.subject || raw.Subject || ''),
+    title: String(raw.title || raw.Title || ''),
+    type: String(raw.type || raw.Type || 'การบ้าน'),
+    due_date: String(raw.due_date || raw['Due Date'] || raw.dueDate || ''),
+    status: String(raw.status || raw.Status || 'รอดำเนินการ'),
+    link: String(raw.link || raw.Link || '')
+  };
+}
+
+function formatGuideForSupabase(raw) {
+  if (!raw) return {};
+  const pages = Array.isArray(raw.pages) ? raw.pages : (raw.content_html ? raw.content_html.split('<!-- PAGE_BREAK -->') : (raw.scope ? [raw.scope] : []));
+  const contentHtml = raw.content_html || pages.join('<!-- PAGE_BREAK -->') || raw.scope || '';
+  return {
+    id: String(raw.id || `guide_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`),
+    term: String(raw.term || raw.Term || ''),
+    subject: String(raw.subject || raw.Subject || 'วิชาใหม่'),
+    exam_type: String(raw.exam_type || raw.ExamType || 'สรุปบทเรียน & แนวข้อสอบ'),
+    title: String(raw.title || raw.Title || 'เอกสารสรุปบทเรียน (หน้าใหม่)'),
+    format: String(raw.format || raw.Format || ''),
+    scope: String(raw.scope || raw.Scope || contentHtml || ''),
+    tips: String(raw.tips || raw.Tips || ''),
+    pdf_link: String(raw.pdf_link || raw.PdfLink || ''),
+    contributor: String(raw.contributor || raw.Contributor || 'ฉันเอง'),
+    content_html: String(contentHtml),
+    pages: pages,
+    created_at: String(raw.created_at || raw.CreatedAt || new Date().toLocaleDateString('th-TH'))
+  };
+}
+
 // Auto-seed helpers: Automatically populate empty Supabase tables from current local data
 async function autoSeedTasksToCloud(tasks) {
   if (!supabaseClient || !Array.isArray(tasks) || tasks.length === 0) return;
   try {
-    const payload = tasks.map(t => ({
-      id: t.id || `task_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      term: t.term || '',
-      subject: t.subject || '',
-      title: t.title || '',
-      type: t.type || 'การบ้าน',
-      due_date: t.due_date || '',
-      status: t.status || 'รอดำเนินการ',
-      link: t.link || ''
-    }));
+    const payload = tasks.map(formatTaskForSupabase);
     const { error } = await supabaseClient.from('tasks').upsert(payload);
     if (!error) {
       console.log('Auto-seeded tasks to Supabase Cloud successfully');
@@ -668,21 +695,7 @@ async function autoSeedTasksToCloud(tasks) {
 async function autoSeedExamGuidesToCloud(guides) {
   if (!supabaseClient || !Array.isArray(guides) || guides.length === 0) return;
   try {
-    const payload = guides.map(g => ({
-      id: g.id || `guide_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      term: g.term || '',
-      subject: g.subject || '',
-      exam_type: g.exam_type || 'สรุปบทเรียน',
-      title: g.title || '',
-      format: g.format || '',
-      scope: g.scope || g.content_html || '',
-      tips: g.tips || '',
-      pdf_link: g.pdf_link || '',
-      contributor: g.contributor || 'เพื่อนร่วมชั้น',
-      content_html: g.content_html || g.scope || '',
-      pages: Array.isArray(g.pages) ? g.pages : [],
-      created_at: g.created_at || new Date().toLocaleDateString('th-TH')
-    }));
+    const payload = guides.map(formatGuideForSupabase);
     const { error } = await supabaseClient.from('exam_guides').upsert(payload);
     if (!error) {
       console.log('Auto-seeded exam_guides to Supabase Cloud successfully');
@@ -858,7 +871,7 @@ function mergeLocalAndRemoteGuides(localList, remoteList) {
 
   // Keep any brand new local drafts that haven't been pushed to cloud yet
   filteredLocal.forEach(loc => {
-    if (!remoteMap.has(loc.id) && loc._unsaved) {
+    if (!remoteMap.has(loc.id)) {
       merged.unshift(loc);
     }
   });
@@ -1431,13 +1444,10 @@ async function duplicateCurrentDocument() {
     ...currentReadingGuide,
     id: newId,
     title: duplicateTitle,
-    Title: duplicateTitle,
     pages: clonedPages,
     content_html: clonedPages.join('<!-- PAGE_BREAK -->'),
-    Scope: clonedPages.join('<!-- PAGE_BREAK -->'),
     scope: clonedPages.join('<!-- PAGE_BREAK -->'),
-    created_at: new Date().toLocaleDateString('th-TH'),
-    CreatedAt: new Date().toLocaleDateString('th-TH')
+    created_at: new Date().toLocaleDateString('th-TH')
   };
 
   allExamGuides.unshift(duplicatedGuide);
@@ -1445,7 +1455,8 @@ async function duplicateCurrentDocument() {
 
   // Background sync to Supabase
   if (supabaseClient) {
-    supabaseClient.from('exam_guides').upsert(duplicatedGuide).catch(err => console.warn('Supabase duplicate sync error:', err));
+    const payload = formatGuideForSupabase(duplicatedGuide);
+    supabaseClient.from('exam_guides').upsert(payload).catch(err => console.warn('Supabase duplicate sync error:', err));
   }
 
   const badge = document.getElementById('badgeGuideCount');
@@ -1689,16 +1700,6 @@ function createDocumentFromTemplate(templateType) {
   const initialBody = pages.join('<!-- PAGE_BREAK -->');
   const newGuide = {
     id: newId,
-    Term: defaultTerm,
-    Subject: subject,
-    ExamType: examType,
-    Title: title,
-    Format: '',
-    Scope: initialBody,
-    Tips: '',
-    PdfLink: '',
-    Contributor: 'ฉันเอง',
-    CreatedAt: new Date().toLocaleDateString('th-TH'),
     term: defaultTerm,
     subject: subject,
     exam_type: examType,
@@ -1718,7 +1719,8 @@ function createDocumentFromTemplate(templateType) {
 
   // Background sync to Supabase
   if (supabaseClient) {
-    supabaseClient.from('exam_guides').upsert(newGuide).catch(err => console.warn('Supabase template sync error:', err));
+    const payload = formatGuideForSupabase(newGuide);
+    supabaseClient.from('exam_guides').upsert(payload).catch(err => console.warn('Supabase template sync error:', err));
   }
 
   const badge = document.getElementById('badgeGuideCount');
@@ -1758,21 +1760,11 @@ function triggerWordAutoSave() {
 // Create a New Blank Word Document
 function createNewBlankWordDocument() {
   const newId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-  const defaultTerm = allTasks[0]?.term || '2.1/9/2569';
+  const defaultTerm = allTasks[0]?.term || '1.2/2569';
   const initialBody = '<p>เริ่มพิมพ์เนื้อหา สรุปบทเรียน หรือโน้ตข้อสอบได้ที่นี่...</p>';
   
   const newGuide = {
     id: newId,
-    Term: defaultTerm,
-    Subject: 'วิชาใหม่',
-    ExamType: 'สรุปบทเรียน & แนวข้อสอบ',
-    Title: 'เอกสารสรุปบทเรียน (หน้าใหม่)',
-    Format: '',
-    Scope: initialBody,
-    Tips: '',
-    PdfLink: '',
-    Contributor: 'ฉันเอง',
-    CreatedAt: new Date().toLocaleDateString('th-TH'),
     term: defaultTerm,
     subject: 'วิชาใหม่',
     exam_type: 'สรุปบทเรียน & แนวข้อสอบ',
@@ -1788,10 +1780,12 @@ function createNewBlankWordDocument() {
   };
 
   allExamGuides.unshift(newGuide);
+  saveLocalExamGuides(allExamGuides);
 
-  // Background sync to Supabase
+  // Background sync clean payload to Supabase
   if (supabaseClient) {
-    supabaseClient.from('exam_guides').upsert(newGuide).catch(err => console.warn('Supabase new doc sync error:', err));
+    const payload = formatGuideForSupabase(newGuide);
+    supabaseClient.from('exam_guides').upsert(payload).catch(err => console.warn('Supabase new doc sync error:', err));
   }
 
   const badge = document.getElementById('badgeGuideCount');
@@ -3100,23 +3094,16 @@ function initEventListeners() {
 
     const formattedDate = formatDateTimeForSheet(due_date_val) || due_date_val;
 
-    const rowPayload = {
-      "id": `task_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      "Term": term,
-      "Subject": subject,
-      "Title": title,
-      "Type": type,
-      "Due Date": formattedDate,
-      "Status": status,
-      "Link": link,
-      "term": term,
-      "subject": subject,
-      "title": title,
-      "type": type,
-      "due_date": formattedDate,
-      "status": status,
-      "link": link
-    };
+    const rowPayload = formatTaskForSupabase({
+      id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      term: term,
+      subject: subject,
+      title: title,
+      type: type,
+      due_date: formattedDate,
+      status: status,
+      link: link
+    });
 
     if (supabaseClient) {
       try {
@@ -3164,22 +3151,16 @@ function initEventListeners() {
 
     const formattedDate = formatDateTimeForSheet(due_date_val) || due_date_val;
 
-    const updatedPayload = {
-      "Term": term,
-      "Subject": subject,
-      "Title": title,
-      "Type": type,
-      "Due Date": formattedDate,
-      "Status": status,
-      "Link": link,
-      "term": term,
-      "subject": subject,
-      "title": title,
-      "type": type,
-      "due_date": formattedDate,
-      "status": status,
-      "link": link
-    };
+    const updatedPayload = formatTaskForSupabase({
+      id: currentEditingTask?.id || `task_${Date.now()}`,
+      term: term,
+      subject: subject,
+      title: title,
+      type: type,
+      due_date: formattedDate,
+      status: status,
+      link: link
+    });
 
     if (supabaseClient) {
       try {
@@ -3258,31 +3239,21 @@ function initEventListeners() {
 
     const originalId = document.getElementById('inputGuideOriginalId').value.trim();
     const isEdit = Boolean(originalId);
+    const newId = isEdit ? originalId : `guide_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
 
-    const guidePayload = {
-      "id": isEdit ? originalId : `guide_${Date.now()}`,
-      "Term": document.getElementById('inputGuideTerm').value.trim(),
-      "Subject": document.getElementById('inputGuideSubject').value.trim(),
-      "ExamType": document.getElementById('selectGuideExamType').value,
-      "Title": document.getElementById('inputGuideTitle').value.trim(),
-      "Format": document.getElementById('inputGuideFormat').value.trim(),
-      "Scope": document.getElementById('inputGuideScope').value.trim(),
-      "Tips": document.getElementById('inputGuideTips').value.trim(),
-      "PdfLink": document.getElementById('inputGuidePdfLink').value.trim(),
-      "Contributor": document.getElementById('inputGuideContributor').value.trim() || 'เพื่อนร่วมชั้น',
-      "CreatedAt": new Date().toLocaleDateString('th-TH'),
-      // Lowercase keys
-      "term": document.getElementById('inputGuideTerm').value.trim(),
-      "subject": document.getElementById('inputGuideSubject').value.trim(),
-      "exam_type": document.getElementById('selectGuideExamType').value,
-      "title": document.getElementById('inputGuideTitle').value.trim(),
-      "format": document.getElementById('inputGuideFormat').value.trim(),
-      "scope": document.getElementById('inputGuideScope').value.trim(),
-      "tips": document.getElementById('inputGuideTips').value.trim(),
-      "pdf_link": document.getElementById('inputGuidePdfLink').value.trim(),
-      "contributor": document.getElementById('inputGuideContributor').value.trim() || 'เพื่อนร่วมชั้น',
-      "created_at": new Date().toLocaleDateString('th-TH')
-    };
+    const guidePayload = formatGuideForSupabase({
+      id: newId,
+      term: document.getElementById('inputGuideTerm').value.trim(),
+      subject: document.getElementById('inputGuideSubject').value.trim(),
+      exam_type: document.getElementById('selectGuideExamType').value,
+      title: document.getElementById('inputGuideTitle').value.trim(),
+      format: document.getElementById('inputGuideFormat').value.trim(),
+      scope: document.getElementById('inputGuideScope').value.trim(),
+      tips: document.getElementById('inputGuideTips').value.trim(),
+      pdf_link: document.getElementById('inputGuidePdfLink').value.trim(),
+      contributor: document.getElementById('inputGuideContributor').value.trim() || 'ฉันเอง',
+      created_at: new Date().toLocaleDateString('th-TH')
+    });
 
     let saveSuccess = false;
 
@@ -3290,6 +3261,7 @@ function initEventListeners() {
       try {
         const { error } = await supabaseClient.from('exam_guides').upsert(guidePayload);
         if (!error) saveSuccess = true;
+        else console.warn('Supabase ExamGuides sync failed:', error);
       } catch (err) {
         console.warn('Supabase ExamGuides sync failed:', err);
       }
